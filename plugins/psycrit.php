@@ -40,19 +40,20 @@ class w3tpl_module_PsyCrit extends w3tpl_module_FiledLinks {
 	  .'[[category:specs/target]]';
 	$this->Parse_WikiText($wtOut);	// parse but don't show
 
-	$smoTitle = new PsyCrit_Page($this->Engine());
+	$smoTitle = new PsyCrit_Page($this);
 	$smoTitle->Use_GlobalTitle();
 
 	$out = $smoTitle->RenderBit_Keyname();
 
 	$txtDiTitle = DBkeyToDisplay($smoTitle->GetPropVal('title'));
 	$htAuthor = $smoTitle->GetPropLinks('Author');
-	$htCiteSrc = $smoTitle->GetPropVal('cite/source');
+	$htCiteSrc = clsArray::RenderList($smoTitle->GetPropVal('cite/source'));
 	$htYear = $smoTitle->GetPropLinks('year');
 	$wtAbstract = $smoTitle->GetPropVal('abstract');
 
 	$strKey = $smoTitle->Keyname();
 	$htResps = $this->Engine()->RenderResponsesFor($strKey);
+
 
 	$out .= "'''$txtDiTitle''': "
 	  ."$htAuthor, "
@@ -96,64 +97,6 @@ class w3tpl_module_PsyCrit extends w3tpl_module_FiledLinks {
 	$smoCTitle->Use_GlobalTitle();
 
 	return $smoCTitle->Render_Targets_forThis_ref();
-/*
-	$arTarg = $smoCTitle->GetPropVals('Responds_to');
-
-	// 2. For each target (keyname), generate link to the corresponding page
-	$objTTitle = new PsyCrit_Page($this->Engine());
-	if (count($arTarg) > 0) {
-	    $out = '';
-	    foreach ($arTarg AS $id => $keyname) {
-		$sqlKeyname = $this->Engine()->SafeParam($keyname);
-		$ar = $this->Engine()->GetPages_forPropVal('Keyname',$sqlKeyname);
-		if (count($ar) > 0) {
-		    if (count($ar) == 1) {
-			// get object for Target page
-			$objTPage = array_shift($ar);	// load first-and-only title
-			$strTitle = $objTPage->TitleKey();
-			$strRef = $objTPage->GetPropVal('cite/author');
-			$wtTLink = '[['.$strTitle.'|'.$strRef.']]';
-			$outRow = $wtTLink;
-		    } else {
-			$outRow = $keyname.' is used <font color=red>'.count($ar).'</font> times!';
-		    }
-		} else {
-		    $outRow = '<font color=red>?</font>'.$keyname;
-		}
-		$out .= ' '.$outRow;
-	    }
-	} else {
-	    $out = '<font color=red>Target not entered</font>';
-	}
-	return $out;
-*/
-    }
-    /*----
-      ACTION: list all articles Targeted by this page
-    */
-    public function w3f_List_Targets_forThis_ref_OLD() {
-	global $wgTitle;
-
-	$strPgTitle = $wgTitle->getDBkey();
-
-	// get list of targets (usually just one, but could be >1)
-	$arArgs = array($strPgTitle,'?responds to','link=none');
-	$txtDiTitle = SMWQueryProcessor::getResultFromFunctionParams(
-	  $arArgs,
-	  SMW_OUTPUT_FILE,
-	  SMWQueryProcessor::INLINE_QUERY,
-	  TRUE);	// treat as if #show (rather than #ask)
-
-	return $txtDiTitle;	// test
-
-/*
-	$sql = GetSQL_for_Targets();
-
-	// get a database connection object
-	$dbr =& wfGetDB( DB_SLAVE );
-	// execute SQL and get data
-	$res = $dbr->query($sql);
-*/
     }
     /*----
       ACTION: list ALL Target articles, with a formatted description of each.
@@ -171,17 +114,32 @@ class w3tpl_module_PsyCrit extends w3tpl_module_FiledLinks {
 	    $idLast = 0;
 	    $out = $this->RenderStart();
 	    while ( $row = $dbr->fetchObject($res) ) {
-		$strPgTitle = $row->page_title;
-		$arArgs = array($strPgTitle,'?title','link=none');
-		$txtDiTitle = SMWQueryProcessor::getResultFromFunctionParams(
+		$sPgTitle = $row->page_title;
+		
+		// get the display title (not the wiki-page title) for each Target article
+		
+		$arArgs = array($sPgTitle,'?title','link=none');
+		list( $oQuery, $oParams ) = SMWQueryProcessor::getQueryAndParamsFromFunctionParams(
 		  $arArgs,
 		  SMW_OUTPUT_FILE,
 		  SMWQueryProcessor::INLINE_QUERY,
 		  TRUE);	// treat as if #show (rather than #ask)
+		$sDiTitle = SMWQueryProcessor::getResultFromQuery(
+		  $oQuery,
+		  $oParams,
+		  SMW_OUTPUT_WIKI,
+		  SMWQueryProcessor::INLINE_QUERY
+		  );
+
+		if (empty($sDiTitle)) {
+		    $wtDiTitle = "[[$sPgTitle]]";
+		} else {
+		    $wtDiTitle = "[[$sPgTitle|$sDiTitle]]";
+		}
 		$out .= '<li>'
-		  .$this->Parse_WikiText('<b>{{#show:'.$strPgTitle.'|?author}}</b>').' '
-		  .$this->Parse_WikiText('({{#show:'.$strPgTitle.'|?year}})').' '
-		  .$this->Parse_WikiText('[['.$strPgTitle.'|'.$txtDiTitle.']]');
+		  .$this->Parse_WikiText("<b>{{#show:$sPgTitle|?author}}</b>").' '
+		  .$this->Parse_WikiText("({{#show:$sPgTitle|?year}})").' '
+		  .$this->Parse_WikiText($wtDiTitle);
 	    }
 	    $out .= $this->RenderStop();
 	} else {
@@ -219,7 +177,7 @@ class w3tpl_module_PsyCrit extends w3tpl_module_FiledLinks {
 	    }
 
 	    $cntRows = count($arOut);
-	    $intCols = NzArray($iArgs,'cols');
+	    $intCols = clsArray::Nz($iArgs,'cols');
 	    if ($intCols) {
 		$cntSplit = (int)$cntRows/$intCols;
 		$didSplit = FALSE;
@@ -251,8 +209,8 @@ class w3tpl_module_PsyCrit extends w3tpl_module_FiledLinks {
 	} else {
 	    $out = 'No responses found!';
 	}
-	$wtPfx = NzArray($iArgs,'pfx');
-	$wtSfx = NzArray($iArgs,'sfx');
+	$wtPfx = clsArray::Nz($iArgs,'pfx');
+	$wtSfx = clsArray::Nz($iArgs,'sfx');
 	$wtOut = $this->Parse_WikiText($wtPfx.$out.$wtSfx);	// parse it all together
 
 	return $wtOut;
@@ -331,9 +289,10 @@ class w3tpl_module_PsyCrit extends w3tpl_module_FiledLinks {
 	return '';
     }
 */
-    protected function RenderLine($iTitle,array $arProps) {
+    protected function RenderLine($iTitle,array $arProps=NULL) {
+	throw new exception('What calls this?');
+    
 	$objTitle = Title::newFromID($iTitle);
-
 
 	$out = '{{faint|'.respDate.'}} <b>'.respTitle.'</b> <i>'.respSnip.'</i> [['.resp_pg_title.'|'.respRef.']]';
 
@@ -376,7 +335,7 @@ class w3tpl_module_PsyCrit extends w3tpl_module_FiledLinks {
     }
 }
 
-class PsyCrit_Data extends clsSMWData {
+class PsyCrit_Data extends fcDataConn_SMW {
     /*----
       RETURNS: short list of responses to the given keyname
 	or NULL if none found.

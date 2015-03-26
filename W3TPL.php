@@ -1,118 +1,10 @@
 <?php
 /*
- HISTORY:
-	0.01 (Wzl) Mainly proof-of-concept;
-	0.02 (Wzl) Kluge to let <xploop> pull #var value under MW <1.12
- 	0.03 (Wzl) <func> and related tags seem to be working
-	0.04 (Wzl) Some debugging; now works with v1.12 {{#tag}} function and template parameters (but not very well)
-		names are always lowercased because sometimes the parser does it for you
-		names are always trimmed, because sometimes the parser includes extra spaces
-	0.05 (Wzl) Added variable indirection ($); removed now-redundant "namer" attribute from <let>
-		can we do something similar with pre-parsing? (i.e. a character to indicate the need for it -- @(stuff to parse))
-		<if> can now make more sense, i.e. using actual values instead of assuming variable names
-	0.06 (Wzl) xploop now using variable indirection; removed listvar parameter
-	0.07 (Wzl) Execution trace in <dump>
-	0.08 (Wzl) <trace> to set trace options; "input" option in <call>
-	0.09 (Wzl) <echo> tag; <call> does not output its contents
-	0.10 (Wzl) Code runs ok; still writing <w3tpl> tag
-	0.11 (Wzl) Added detection of page-protection, and "raw" attribute for <echo>
-	0.12 (Wzl) Fixed minor incompatibilities with MW 1.10
-	0.13 (Wzl) <for> tag seems to be working, at least for simple stuff
-	0.14 (Wzl) <load> tag fails gracefully when title doesn't exist
-	0.15 (Wzl) Support for brackets in variable names, to reference arrays
-	0.16 (Wzl) No SQL on unprotected pages; "limit" attribute for retrieving partial data
-	0.17 (Wzl) Removed some undefined-var warnings which pop up under certain mysterious circumstances
-	0.18 (Wzl) Lots of under-the-hood changes; var names are now parsed by the class clsW3VarName, which may later get renamed to clsW3Var and integrated with the full-blown parser to be written. There's still some ambiguity about the exact circumstances under which <let> overwrites existing data and when it operates on the variable's current value.
-	0.19 (Wzl) $wgW3TPLSettings['raw-ok'] now allows raw output even if page not protected
-	0.20 (Wzl) added "pre" as a deprecated alias for "parse", for backwards compatibility
-	0.21 (Wzl) merged changes from other version 0.19 (accidental fork):
-		"user.name" and "user.dbkey" system data
-	0.22 (Wzl) user.can.[action]
-	0.23 (Wzl) added "file=" attribute to <dump> tag; $wgW3_opt_fpLogs
-	0.24 (Wzl) wrote code for access to non-MW dbs via "db=" in <for> tag
-	0.25 (Wzl) patch for pre-5.3.0 PHP; @title.url
-	0.26 (Wzl) 'vars' option for <let> copied from <echo>, but it doesn't seem to work
-	0.27 (Wzl) @title.full
-	0.30 (Wzl) removed all echo-level tracking; added "var" attribute to <echo>
-	0.31 (Wzl)
-	    @user.rights - returns marked list of current user's rights
-	    "if (defined('__DIR__'))" properly invokes newer PHP constant if it's available
-	0.?? 2009-02-13 (Wzl) $wgOptCP_SubstFinish "]" -> "$]" so links and other bracketed stuff don't confuse the var parser
-	0.32 2009-04-02 (Wzl)
-	    Fixed some warning messages in <for> (use of undeclared var $doTbl in certain circumstances)
-	    Fixed bug where upper-cased things in sysvars (@) could not be accessed
-	      (was: 2009-01-29 can't access upper-case-named POST variables)
-	    "sql=" argument in <for>
-	0.33 2009-04-11 (Wzl) - var names are now lowercased before being used as an index, but @sysdata names still are not
-	0.34 2009-04-26 (Wzl) - @user.name, @user.email
- 	0.35 2009-05-30 (wzl) - merged changes made in v0.33 of separate branch (merged on 2009-06-06)
-	    Removed <for name=> parameter, field name is now @row's 2nd argument (not 3rd)
-	    <for xps=> option to use xplodable string as list
-	    <let oparse> option to parse value only on output (use with "echo" option)
-	    @title.subject no longer includes subpages; added @title.name, which does
-	0.36 2010-01-19 (Wzl) - minor bugfix in efW3For(): make sure $doDb is always defined
-	0.37 2010-01-29 (Wzl) - another minor bugfix in efW3For(): set $out to NULL at start, in case there is no output
-	0.38 2010-05-05 (Wzl) - variables in function names using "func=" parameter
-	0.39 2010-07-25 (Wzl) - no functional changes; just sorted tag functions alphabetically
-	0.40 2010-09-11 (Wzl)
-	0.41 2011-05-05 (Wzl) split <for>'s row-display code off into a separate function, for external use (InstaGov)
-	    fixed bug in <get arg>
-	    added "tag" option to <echo> and <let>
-	    deprecated @post and @query; added @http.get/post/req
-	0.42 2011-06-01 (Wzl) added plus, minus, min, max, not operators to <let>
-	0.43 2011-06-13 (Wzl) moved @sql to @db.sql
-	0.44 2011-07-25 (Wzl) functions are now stored in page_props; <call> looks there if it can't find one already loaded
-	0.45 2011-08-07 (Wzl) better handling of data.php; cleanup of function-search code
-	0.46 2011-08-22 (Wzl) <call> now passes inter-tag text as final argument
-	0.47 2011-09-18 (Wzl) belated merge of 0.46 with modified 0.44
-	0.48 2011-10-16 (Wzl) adding plugins architecture, <exec> tag
-	0.49 2012-01-20 (Wzl) tags returning NULL values cause problems in MW 1.18 (UNIQ-QINU stuff gets displayed)
-	0.50 2012-03-18 (Wzl) now shows error message if plugin module does not have requested function
-	0.51 2012-04-14 (Wzl) load the StringTemplate library so the class extension doesn't cause an error
-	0.52 2012-06-02 (Wzl) better handling of arrays in <for>
-	0.53 2012-07-19 (Wzl) bugfix for "chr" parameter
-	0.54 2012-08-02 (Wzl) fixed a rather deep bug having to do with array access
-	0.55 2012-08-03 (Wzl) fixed minor issue in <call>; duplicate "tag" code removed from <let>
-	0.56 2012-08-07 (Wzl) <let>: encode=sql attribute
-	0.57 2013-08-29 (Wzl) major rework of library manager -- doesn't affect internal code here, just initialization in the header
-	0.58 2014-06-13 (Wzl) had to kluge SQL sanitization in MW because of change to MySQLi library, with object being wrapped up inaccessibly
-	  I do not (yet) know how to fix this.
-	0.59 2014-10-16 (Wzl) various fixes after migration to Cloud1
-	0.60 2014-12-15 (Wzl) no longer invoking config-libs from libraries
-TO DO:
-	Get rid of the master variable array ($wgW3Vars) as a separate entity from the local object.
-	  It should be an array of objects, created as needed (cached).
-	  Scalars and Arrays should have separate classes. Maybe functions, too.
-	An alternate <call> syntax might be good, where the function name and arguments are given explicitly:
-	  <run func=funcName arg1=value arg2=value input=arg3>this will get passed as the value of arg3</run>
-	  ...or possibly just define the function name as a tag for the shorter form: <funcName value1 value2>
-	Functions should be able to return values
-	Variables inside functions should be local by default; need a way to make them global as well if we do that
-	<load> should do nothing by default
-	  "parse[=var]" should tell it to parse the page's contents and place the results in var
-	  "raw=var" should tell it to put the page's unparsed contents into var
-	  "props=var" should tell it to load the page's page_props into array var[]
-	  "smwprops=var" should tell it to load the page's Semantic MediaWiki properties into array var[]
- ELEMENTS:
-	<hide>: Runs the parser on everything in between the tags, but doesn't display the result.
-		Useful for doing a lot of "programmish" stuff, so you can format it nicely and comment it without messing up your display
-	<let>, <get>: much like PageVars extension, but using XML tags instead of {{#parser}} functions
-	<func>: defines a function which can be called with arguments later
-		<arg>: optional method of passing arguments to a function
-	<call>: call a previously defined function
-	<dump>: show list of all variables (with values) and functions (with code)
-	<if>, <else>: control structure
-	<xploop list="\demarcated\list" repl=string-to-replace sep=separator></xploop>: Same as {{#xploop}}, but uses varname instead of $s$
-	TO-DO <w3tpl></w3tpl>: The language itself
-		parser should later be optimized for execution time by using PHP intrinsic string fx instead of PHP-code loop
-*/
+  HISTORY: see http://htyp.org/W3TPL/history
+  */
 
 $wgOptCP_SubstStart = '[$';
 $wgOptCP_SubstFinish = '$]';
-
-// This is only necessary because of the SQLValue() and nzArr() utility functions:
-//clsLibMgr::Load('data',__FILE__,__LINE__);
-// Utility functions in data.php ought to be in a separate file.
 
 $w3step = FALSE;
 $w3stop = FALSE;
@@ -122,7 +14,7 @@ $wgExtensionCredits['other'][] = array(
 	'description' => 'Woozle\'s Wacky Wiki Text Processing Language',
 	'author' => 'Woozle (Nick) Staddon',
 	'url' => 'http://htyp.org/W3TPL',
-	'version' => '0.60 2014-12-15'
+	'version' => '0.61 2015-03-13'
 );
 $dir = dirname(__FILE__) . '/';
 

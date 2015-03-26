@@ -7,11 +7,11 @@
     2011-10-16 w3tpl code started to get too ugly, so pushing out some functionality into callable modules.
     2012-01-24 split off SMW stuff from filed-links.php to smw-links.php
     2013-02-14 w3f_SiteGroupListing() now works for G+
+    2015-03-14 removed explicit check for needed library
 */
-//require(kfpMWLib.'/smw/smw-base.php');
-if (!defined('WZL_SMW')) {
-	die(__FILE__.' requires <b>smw-base.php</b>.');
-}
+
+clsLibrary::Load_byName('ferreteria.db.2');
+clsLibrary::Load_byName('ferreteria.mw.2');
 
 new w3tpl_module_SMWLinks();	// class will self-register
 
@@ -23,7 +23,7 @@ class w3tpl_module_SMWLinks extends w3tpl_module {
     */
     public function Engine() {
 	$dbr =& wfGetDB( DB_SLAVE );
-	$db = new W3Site_Data($dbr);
+	$db = new fcDataConn_SMW($dbr);
 	return $db;
     }
 
@@ -247,6 +247,4 @@ class w3smwDataItem {
 	}
 	return $dv;
     }
-}
-class W3Site_Data extends clsSMWData {
 }

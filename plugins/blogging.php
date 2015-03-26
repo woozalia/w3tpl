@@ -16,6 +16,7 @@ class w3tpl_module_Blogging extends w3tpl_module_SMWLinks {
 	TODO - user: show only entries by this user; if NULL or not set, show all users
     */
     public function w3f_ShowBlogEntryBriefs(array $iArgs) {
+    
 	$w3oData = $this->Engine();
 	$ar = $w3oData->GetPages_forPropVal('Page type','Blog post');
 
@@ -48,18 +49,16 @@ class w3tpl_module_Blogging extends w3tpl_module_SMWLinks {
 
     public function Engine() {
 	$dbr =& wfGetDB( DB_SLAVE );
-	$db = new Blogging_Data($dbr);
+	$db = new fcDataConn_SMW($dbr);
 	return $db;
     }
 
 }
 
-class Blogging_Data extends clsSMWData {
-}
 class Blog_Entry extends w3smwPage {
     public function RenderSummary() {
 	$strRTitle = $this->GetPropVal('Title');	// raw title
-	$strDTitle = clsSMWData::VisualizeTitle($strRTitle);
+	$strDTitle = fcDataConn_MW::VisualizeTitle($strRTitle);
 
 	$mwoTitle = $this->MW_Object();
 	$urlTitle = $mwoTitle->getFullURL();
