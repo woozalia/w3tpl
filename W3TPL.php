@@ -14,7 +14,7 @@ $wgExtensionCredits['other'][] = array(
 	'description' => 'Woozle\'s Wacky Wiki Text Processing Language',
 	'author' => 'Woozle (Nick) Staddon',
 	'url' => 'http://htyp.org/W3TPL',
-	'version' => '0.61 2015-03-13'
+	'version' => '0.63 2015-09-12'
 );
 $dir = dirname(__FILE__) . '/';
 
@@ -205,7 +205,7 @@ function W3GetSysData($iName) {
 	}
 	break;
       case 'http':
-	$strName = nz($strParts[2]);
+	$strName = clsArray::Nz($strParts,2);
 	switch ($strParam) {
 	  case 'get':
 	    if (empty($strName)) {
@@ -232,7 +232,7 @@ function W3GetSysData($iName) {
 	  case 'req':
 	    if ($strParam) {
 		//$out = $wgRequest->getVal($strName);
-		$out = nzArray($_REQUEST,$strName);
+		$out = clsArray::Nz($_REQUEST,$strName);
 		W3AddTrace('NAME=['.$strName.'] RESULT=['.$out.']');
 	    } else {
 		$out = NULL;	// maybe this should be a list?
@@ -254,7 +254,7 @@ function W3GetSysData($iName) {
 	break;
       case 'post':	// DEPRECATED -- same as http.post; eliminate eventually
 	if ($strParam) {
-	    if (isset($_POST[$strParam])) {
+	    if (array_key_exists($strParam,$_POST)) {
 		$out = $_POST[$strParam];
 	    } else {
 		$out = NULL;
@@ -264,7 +264,7 @@ function W3GetSysData($iName) {
 	break;
       case 'env':
 	  if ($strParam) {
-		  if (isset($_ENV[$strParam])) {
+		  if (array_key_exists($strParam,$_ENV)) {
 			  $out = $_ENV[$strParam];
 		  } else {
 			  $out = NULL;
@@ -308,25 +308,6 @@ function W3GetSysData($iName) {
 
     return $out;
 }
-/*----
-  2011-09-19 this doesn't work; discontinuing it
-function W3SetSysData($iName,$iValue) {
-	global $wgOut;
-	global $wgW3Trace_indent;
-
-	W3AddTrace(' SETSYSDATA ['.$iName.':'.$iValue.']');
-	$strName = $iName;
-	$strParts =  explode('.', $strName);
-	switch (strtolower($strParts[0])) {
-	    case 'catg':
-		$wgW3Trace_indent++;
-		W3AddTrace('CATG');
-		$wgW3Trace_indent--;
-		$wgOut->mCategoryLinks = array();
-		break;
-	}
-}
-*/
 function W3GetExpr($iExpr) {
 // check expression for $, meaning it's actually a reference to a variable
 // If found, return value of variable - otherwise return original string.
@@ -335,7 +316,7 @@ function W3GetExpr($iExpr) {
 	W3AddTrace('W3GetExpr('.$iExpr.')');
 	$wgW3Trace_indent++;
 
-	$objVar = new clsW3VarName();
+	$objVar = new clsW3Var();
 	$objVar->ParseExpr_toValue($iExpr);
 	$objVar->Trace();
 	//$objVar->Fetch();	// this overwrites - don't use!
@@ -349,7 +330,7 @@ function W3GetExpr($iExpr) {
 function W3GetVal($iName,$iIndex=NULL) {
 // gets value of given variable
 // checks function arguments, if function is defined
-	$objVar = new clsW3VarName();
+	$objVar = new clsW3Var();
 	$objVar->ParseExpr_toName($iName);
 	if (!is_null($iIndex)) {
 		$objVar->SetIndex($iIndex);
@@ -1135,6 +1116,7 @@ function efW3For( $input, $args, $parser ) {
 	    $strWhere = $objArgs->GetArgVal('where');
 	} else {
 	    $doDb = FALSE;
+	    W3AddTrace(' - page is not protected; cannot use database functions');
 	    $txtErr = '<b>W3TPL</b>: database operation not allowed on unprotected page.';
 	}
 	// these parameters can be used for other types of data (implemented yet? probably not)
@@ -1415,21 +1397,28 @@ class clsContentProps {
     public function SaveVal($iKey,$iVal) {
 	$this->objOut->setProperty($iKey,$iVal);
     }
-    protected function GetLoadSQL($iKey) {
-	//clsModule::LoadFunc('SQLValue');	// make sure this function is loaded
-	//$sqlKey = $this->Database()->db_safe_param($iKey);
-	$sqlKey = '"'.$iKey.'"';	// unsafe kluge - TODO: FIX
-	$sql = 'SELECT pp_page, pp_value FROM page_props WHERE pp_propname='.$sqlKey;
+    /*----
+      RETURNS: SQL for retrieving properties
+      INPUT:
+	$sKey: if NULL, retrieve all properties; if not null, just retrieve the named property.
+    */
+    protected function GetLoadSQL($sKey=NULL) {
+	$sqlKey = SQLValue($sKey);
+	$sql = 'SELECT pp_page, pp_value FROM page_props';
+	if (!is_null($sKey)) {
+	    $sql .= " WHERE pp_propname=$sqlKey";
+	}
 	return $sql;
     }
-    public function LoadVal($iKey) {
-	//$dbr =& wfGetDB( DB_SLAVE );
-	//$this->Database($dbr);
-	$sql = $this->GetLoadSQL($iKey);
+    /*----
+      ACTION: Load the page property value for the given key, or all page properties
+	The set of data loaded is determined by how GetLoadSQL() is implemented.
+    */
+    public function LoadVal($sKey=NULL) {
+	$sql = $this->GetLoadSQL($sKey);
 	try {
 	    $res = $this->Database()->query($sql);
-	}
-	catch (Exception $e) {
+	} catch (Exception $e) {
 	    $txt = "W3TPL got a db error searching for property [$iKey] - ''".$dbr->lastError()."'' - from this SQL:\n* ".$sql;
 	    W3AddEcho('<div class="previewnote">'.$txt.'</div>');	// what is the *proper* class for error msgs?
 //	    return $parser->recursiveTagParse($out);
@@ -1437,17 +1426,34 @@ class clsContentProps {
 	$dbr = $this->Database();
 	$qRows = $dbr->numRows($res);
 	if ($qRows <= 0) {
-	    $rtn = NULL;	// key not found
-	} else {
+	    // key not found
+	    $rtn = NULL;
+	} elseif (is_null($sKey)) {
+	    // list requested - return as array
 	    while ($row = $dbr->fetchRow($res)) {
-		$id = $row['pp_page'];
-		$rtn = $row['pp_value'];
+		//$id = $row['pp_page'];
+		$sKey = $row['pp_propname'];
+		$rtn[$sKey] = $row['pp_value'];
 	    }
+	} else {
+	    // one value requested - return as scalar
+	    $row = $dbr->fetchRow($res);
+	    //$id = $row['pp_page'];
+	    $rtn = $row['pp_value'];
 	}
 	return $rtn;
     }
-    public function LoadVals($iKey) {
-	$keys = $this->LoadVal($iKey.'>');
+    /*----
+      ACTION: Load an array of values for the given key
+	This assumes that arrays are stored in a structure something like this:
+	  "key>" => "\subkey1\subkey2"
+	  "key>subkey1" => value
+	  "key>subkey2" => value
+	  (Not sure if this is the exact structure; that should be checked.)
+      TODO: This should be renamed something like "LoadArray_forKey()".
+    */
+    public function LoadVals($sKey) {
+	$keys = $this->LoadVal($sKey.'>');
 	if (is_null($keys)) {
 	    return NULL;
 	} else {
@@ -1466,45 +1472,8 @@ class clsContentProps {
 	    return $arThis;
 	}
     }
-/*
-    public function LoadArray($iBase=NULL) {
-	$xts = new xtString();
 
-	$arVals = $this->LoadVals($iBase);
-	foreach ($arVals as $key => $val) {
-	    $xts->Value = $key;
-	    $arSplit = $xts->Xplode();
-	    if (count($arSplit) == 1) {
-	    } else {
-	    }
-	}
-
-	// get row ID of function
-	//if (is_resource($res)) {
-	    if ($dbr->numRows( $res ) <= 0) {
-		    $objFunc = NULL;	// function not found
-	    }
-	    while ($row = $dbr->fetchRow($res)) {
-		$id = $row['pp_page'];
-		$funcCode = $row['pp_value'];
-	    }
-	    // now look up arguments
-	    $akey = $fkey.'>';
-	    $sql = 'SELECT pp_propname, pp_value FROM page_props WHERE '
-	      .'(pp_page='.$id.') AND '
-	      .'(pp_propname LIKE '.SQLValue($akey.'%').')';
-	    try {
-		    $res = $dbr->query($sql);
-	    }
-	    catch (Exception $e) {
-		    $out = "W3TPL got a db error searching for arguments for function [$funcName] - ''".$dbr->lastError()."'' - from this SQL:\n* ".$sql;
-		    return $parser->recursiveTagParse($out);
-	    }
-    }
-*/
-    /*===
-      OBJECT-SPECIFIC
-    ===*/
+    // ++ OBJECT-SPECIFIC ++ //
 
     /*----
       ACTION: create a function object from stored data
@@ -1521,6 +1490,7 @@ class clsContentProps {
 	return $objFunc;
     }
 
+    // -- OBJECT-SPECIFIC -- //
 }
 /*====
   DETAILS: This currently uses the page_props table, but it should be substrate-independent -- e.g.
@@ -1533,13 +1503,20 @@ class clsPageProps extends clsContentProps {
 	parent::__construct($iParser);
 	$this->objPage = $iPage;
     }
-
-    protected function GetLoadSQL($iKey) {
+    /*----
+      RETURNS: SQL for retrieving properties for the current page
+      INPUT:
+	$sKey: if NULL, retrieve all properties; if not null, just retrieve the named property.
+    */
+    protected function GetLoadSQL($sKey=NULL) {
 	if (is_object($this->objPage)) {
-	    $sql = 'SELECT pp_page, pp_value FROM page_props'
-	      .' WHERE'
-		.' (pp_propname='.SQLValue($iKey).') AND'
-		.' (pp_page='.$this->objPage->getArticleID().')';
+	    $idArticle = $this->objPage->getArticleID();
+	    $sql = 'SELECT pp_page, pp_propname, pp_value FROM page_props'
+	      ." WHERE (pp_page=$idArticle)";
+	    if (!is_null($sKey)) {
+		$sqlKey = SQLValue($sKey);
+		$sql .= " AND (pp_propname=$sqlKey)";
+	    }
 	    return $sql;
 	} else {
 	    throw new exception('No page object available for loading value of page property ['.$iKey.'].');
@@ -1804,6 +1781,17 @@ function efW3If( $input, $args, $parser ) {
 }
 /*-----
   TAG: <let>
+  ATTRS:
+    array: flag indicating that the output variable is an array
+    echo: flag indicating that the output should be echoed
+    index = array index to use on the output variable
+    load: flag indicating that the contents of <page> should be loaded
+    name = name of output variable
+    page = name of source page
+    parse (not tested)
+    save = save the output variable as a page property
+    self = when appending, append to self
+    oparse
 */
 function efW3Let( $input, $args, $parser ) {
         global $wgRequest;
@@ -1811,49 +1799,66 @@ function efW3Let( $input, $args, $parser ) {
 	global $wgW3Vars,$wgW3_func;
 	W3EnterTag('LET',$args);
 
-	$strCopy = NULL;
 	$objArgs = new W3HookArgs($args);
 
-	// create a variable object named according to the value of the given parameter
-	$objVar = $objArgs->GetVarObj_Named_byArgVal('name');
-	if (isset($args['index'])) {
-		$strIdx = strtolower(W3GetExpr($args['index']));
-		$objVar->SetIndex($strIdx);
+	// set local variables for attributes
+	$doArray = $objArgs->Exists('array');
+	$doEcho = isset($args['echo']);
+	$hasIndex = isset($args['index']);
+	if ($hasIndex) {
+	    $strIdx = strtolower(W3GetExpr($args['index']));
+	    $objVar->SetIndex($strIdx);
 	}
-	$objVar->Name;
+	$doLoad = $objArgs->Exists('load');
+	$objVar = $objArgs->GetVarObj_Named_byArgVal('name');
+	$isNull = isset($args['null']);
+	$doOParse = isset($args['oparse']);
+	$doPage = $objArgs->Exists('page');
+	if ($doPage) {
+	    $sPage = $objArgs->GetArgVal('page');
+	}
+	$doParse = isset($args['parse']);
+	$doSave = isset($args['save']);
+	$doSelf = isset($args['self']);
+	//
+
+	$strCopy = NULL;
 
 	W3AddTrace('name=['.($objVar->NameRaw).'] parsed to ['.$objVar->Name.']');
 	$objVar->Trace();
 
-	if (isset($args['null'])) {
-	// if "null" option, then nothing else matters
+	if ($isNull) {
+	    // if "null" option, then no other inputs matter
 	    $objVar->Clear();
-
-	} elseif ($objArgs->Exists('load')) {
+	} elseif ($doLoad) {
 	    // This could be either array or scalar, so we have to handle it here.
 	    // This means other options won't work on a load; oh well, fix later.
 	    $objVar->Clear();
 
-	    if ($objArgs->Exists('page')) {
-		$strTitleRaw = $objArgs->GetVal('page');
-		$vobjTitle = new clsW3VarName();
-		$vobjTitle->ParseName($strTitleRaw);
-		$strTitle = $vobjTitle->Name;
-//		$strTitle = $objArgs->GetExpr('page');
+	    if ($doPage) {
+		$strTitleRaw = $sPage;				// get namespec of page to access
+		$vobjTitle = new clsW3Var();		// create new Variable object
+		$vobjTitle->ParseName($strTitleRaw);		// have the Variable parse the namespec and act accordingly
+		$strTitle = $vobjTitle->Name;			// retrieve the Variable's name, as calculated
 		W3AddTrace(' - from page: ['.$strTitle.']');
-		$objTitle = Title::newFromText($strTitle);
+		$objTitle = Title::newFromText($strTitle);	// create a MW Title object
 		if (!is_object($objTitle)) {
 		    echo 'vArgs:<pre>'.print_r($objArgs->vArgs,TRUE).'</pre>';
 		    echo 'wgW3Vars:<pre>'.print_r($wgW3Vars,TRUE).'</pre>';
 		    throw new exception('Did not get a title object for the page named ['.$strTitle.'], parsed from ['.$strTitleRaw.']');
 		}
-		$objProps = new clsPageProps($parser,$objTitle);
-		if ($objArgs->Exists('array')) {
-		    $objVar->LoadArray($objProps);
-		} else {
-		    $strVal = $objProps->LoadVal($strName);
-		    W3AddTrace(' -- value: ['.$strVal.']');
-		    $objVar->Load($strVal);
+		$objProps = new clsPageProps($parser,$objTitle);	// create a MW Page Properties object for the Title
+		if ($doArray) {			// if the output var is an array...
+		    $objVar->LoadArray($objProps);				// ...load all the Props into it
+		    W3AddTrace(' -- loading prop as array:'.$objVar->RenderDumpArray());
+		} else {						// Otherwise:
+		    if ($hasIndex) {
+			$strVal = $objProps->LoadVal($strIdx);			// ...just load the specified Prop
+			W3AddTrace(' -- value: ['.$strVal.']');
+			$objVar->Load($strVal);
+		    } else {							// ...load all Props for this page
+			$objVar->LoadAll($objProps);
+		    }
 		}
 	    } else {
 		// for now, we're not going to support loading global arrays
@@ -2427,20 +2432,21 @@ class clsW3Function {
     }
 }
 
-class clsW3VarName {
+class clsW3Var {
 /*
-* An *expression* can be:
-** a literal value - "this is a string"
-** a reference to a variable - "$theVar"
-** a reference to a special function - @row.fieldname
-* A variable reference can be:
-** scalar value - "$aScalar"
-** array index - "$anArray[index_expression]" where "index_expression" is an expression
-
-We automatically find the value of all inner elements as needed, but leave the outermost unresolved
+  RULES:
+    * An *expression* can be:
+    ** a literal value - "this is a string"
+    ** a reference to a variable - "$theVar"
+    ** a reference to a special function - @row.fieldname
+    * A variable reference can be:
+    ** scalar value - "$aScalar"
+    ** array index - "$anArray[index_expression]" where "index_expression" is an expression
+    * We automatically find the value of all inner elements as needed, but leave the outermost unresolved
 	in order to allow for different operations depending on context.
-
-2012-06-03 IS THERE ANY REASON not to rename clsW3VarName to clsW3Var?
+  HISTORY:
+    2012-06-03 IS THERE ANY REASON not to rename clsW3VarName to clsW3Var?
+    2015-09-10 Renamed clsW3VarName to clsW3Var.
 */
 	public $Expr;	// code-expression to parse
 	public $NameRaw;	// unparsed name
@@ -2452,7 +2458,7 @@ We automatically find the value of all inner elements as needed, but leave the o
 
 	public function __construct($iExpr = NULL) {
 		$this->isFunc = FALSE;
-		W3AddTrace('clsW3VarName: init=['.$iExpr.']');
+		W3AddTrace('clsW3Var: init=['.$iExpr.']');
 		if (!is_null($iExpr)) {
 			$this->ParseExpr($iExpr);
 		}
@@ -2464,7 +2470,7 @@ We automatically find the value of all inner elements as needed, but leave the o
 	    if ($this->IsArray()) {
 		$ar = $this->Value;
 		foreach ($ar as $key => $val) {
-		    $objNew = new clsW3VarName();
+		    $objNew = new clsW3Var();
 		    $objNew->Name = $this->Name;
 		    $objNew->Index = $key;
 		    $objNew->Clear();
@@ -2473,13 +2479,6 @@ We automatically find the value of all inner elements as needed, but leave the o
 	    $this->Value = NULL;
 	    $this->Store();
 	}
-	/*----
-	  RETURNS: Object for the named array element
-	*/
-/*
-	public function GetElement($iIndex) {
-	}
-*/
 	/*----
 	  RETURNS: full variable name -- including array index, if present
 	  HISTORY:
@@ -2623,42 +2622,6 @@ We automatically find the value of all inner elements as needed, but leave the o
 	    $this->Value = $this->ParseExpr($iExpr);
 	    W3AddTrace(' STORED ['.$this->Value.'] as VALUE');
 	}
-/**/
-/* ORIGINAL VERSION
-	public function ParseExpr($iExpr) {
-		global $wgW3_doTrace_vars;
-		global $wgW3Trace_indent;
-
-		$wgW3Trace_indent++;
-		$strExpr = $iExpr;
-		$this->ValRaw = $iExpr;	// for debugging
-
-		if ($wgW3_doTrace_vars) {
-			W3AddTrace(' {PARSE-EXPR ['.ShowHTML($iExpr).']');
-		}
-
-		$chFirst = substr($strExpr,0,1);
-		switch ($chFirst) {
-		  case '$':
-			$strRef = strtolower(substr($strExpr,1));
-			$this->ParseName($strRef);
-			break;
-		  case '@':
-			$strRef = strtolower(substr($strExpr,1));
-			$this->ParseName($strRef);
-			$this->isFunc = TRUE;
-			break;
-		  default:
-			// it's a literal, so the string is the value
-			$this->Value = $strExpr;
-		}
-		if ($wgW3_doTrace_vars) {
-			W3AddTrace(' => ['.ShowHTML($strExpr).'] EXPR}');
-		}
-		$wgW3Trace_indent--;
-		return $strExpr;
-	}
-/**/
 	/*----
 	  ACTION: parses a variable name, which may include array syntax
 	  OUTPUT: sets internal fields --
@@ -2710,7 +2673,6 @@ We automatically find the value of all inner elements as needed, but leave the o
 	    $wgW3Trace_indent--;
 	    W3AddTrace('/PARSE-NAME');
 	}
-/**/
 
 	public function Index($iVal=NULL) {
 	    if (!is_null($iVal)) {
@@ -2720,7 +2682,7 @@ We automatically find the value of all inner elements as needed, but leave the o
 	}
 	public function SetIndex($iValue) {
 		$this->Index = $iValue;
-		W3AddTrace('clsW3VarName.SetIndex of ('.$this->Name.') to ['.$iValue.']');
+		W3AddTrace('clsW3Var.SetIndex of ('.$this->Name.') to ['.$iValue.']');
 	}
 	public function IsElem() {	// is element of an array?
 		return !is_null($this->Index);
@@ -2743,19 +2705,6 @@ We automatically find the value of all inner elements as needed, but leave the o
 	    } else {
 		$iProps->SaveVal($this->Name,$this->Value);
 	    }
-/* This works, but isn't consistent with how functions are stored and doesn't allow for array detection
-	    if ($this->IsArray()) {
-		$ar = $this->Value;
-		foreach ($ar as $key => $val) {
-		    $name = $this->FullName().'['.$key.']';
-		    $iobjOut->setProperty($name,$val );
-		}
-	    } else {
-		$strKey = $this->FullName();
-		// is there some better way to access mOutput?
-		$iobjOut->setProperty($strKey,$this->Value);
-	    }
-*/
 	}
 	/*----
 	  ACTION: Loads the variable from page properties
@@ -2774,7 +2723,7 @@ We automatically find the value of all inner elements as needed, but leave the o
 		W3AddTrace(' -- values for ['.$this->Name.'] array:');
 		foreach ($arVal as $key => $val) {
 		    W3AddTrace(' --- ['.$key.'] = ['.$val.']');
-		    $objNew = new clsW3VarName();
+		    $objNew = new clsW3Var();
 		    $objNew->Name = $this->Name;
 		    $objNew->Index = $key;
 		    $objNew->Value = $val;
@@ -2786,12 +2735,26 @@ We automatically find the value of all inner elements as needed, but leave the o
 	    W3AddTrace(' -- LoadArray EXIT');
 	}
 	/*----
-	  ACTION: Loads the variable from page properties
-	    If the page property indicates an array, loads the array into the variable
+	  ACTION: Loads all of the page's properties as an array
 	*/
-	/*----
-	  ACTION: Does the legwork involved in actually determining the variable's value from its specification ("name").
-	*/
+	public function LoadAll(clsPageProps $iProps) {
+	    W3AddTrace(' -- LoadAll ENTER');
+	    $arVal = $iProps->LoadVal();	// load all page properties
+	    if (is_array($arVal)) {
+		W3AddTrace(' -- all values for current page:');
+		foreach ($arVal as $key => $val) {
+		    W3AddTrace(' --- ['.$key.'] = ['.$val.']');
+		    $objNew = new clsW3Var();
+		    $objNew->Name = $this->Name;
+		    $objNew->Index = $key;
+		    $objNew->Value = $val;
+		    $objNew->Store();
+		}
+	    } else {
+		W3AddTrace(' -- array not returned! (BUG)');
+	    }
+	    W3AddTrace(' -- LoadAll EXIT');
+	}
 	public function Fetch() {
 	    global $wgW3Vars;
 
@@ -2803,7 +2766,7 @@ We automatically find the value of all inner elements as needed, but leave the o
 	    } else {
 		    // literal value - already set.
 	    }
-	    W3AddTrace('clsW3VarName.Fetch: value='.$this->SummarizeValue());
+	    W3AddTrace('clsW3Var.Fetch: value='.$this->SummarizeValue());
 	    $this->Trace();
 	}
 	public function Store() {
@@ -2893,7 +2856,7 @@ We automatically find the value of all inner elements as needed, but leave the o
 		$strVal = $this->Value;
 	    }
 
-	    $out = 'clsW3VarName.Trace: '.
+	    $out = 'clsW3Var.Trace: '.
 	      'Name=['.$this->Name.'] '.
 	      'Val=['.$strVal.'] '.
 	      'Index=['.$this->Index.'] '.
@@ -2901,6 +2864,9 @@ We automatically find the value of all inner elements as needed, but leave the o
 	      TrueFalseHTML('is element',$this->IsElem()).' '.
 	      TrueFalseHTML('is func',$this->isFunc);
 	    return $out;
+	}
+	public function RenderDumpArray() {
+	    return clsArray::Render($this->Value);
 	}
 }
 
@@ -3013,7 +2979,7 @@ class W3HookArgs {
  Value of "name" has now been parsed to its value, which is the raw name of the variable
   where we'll be storing the output of the <LET> operation.
 */
-	$objVar = new clsW3VarName();
+	$objVar = new clsW3Var();
 	$objVar->ParseName($strVal);	// parse any name syntax (usually array brackets)
 
 	W3TraceOutdent();

@@ -1,14 +1,16 @@
 <?php
 /*
-  PURPOSE: structured debate functions for w3tpl
-  REQUIRES:
-    StringTemplate.php
+  PURPOSE: structured debate functions for w3tpl using Semantic MediaWiki
   HISTORY:
     2011-10-16 w3tpl code started to get too ugly, so pushing out some functionality into callable modules.
     2011-12-07 starting to adapt from filed-links.php
+    2015-09-10 renaming from debate.php to debate-smw.php because it uses SMW
 */
 
 new w3tpl_module_Debate();	// class will self-register
+
+define('KWP_ICON_PRO_POINT','File:Arrow-button-up-20px.png');
+define('KWP_ICON_CON_POINT','File:Arrow-button-dn-20px.png');
 
 class w3tpl_module_Debate extends w3tpl_module_FiledLinks {
     protected $arPointTplt;
@@ -21,13 +23,13 @@ class w3tpl_module_Debate extends w3tpl_module_FiledLinks {
 	parent::__construct();
 
 	$this->objTpltLine = NULL;
-	$this->arPointTplt['+'] = 
+	$this->arPointTplt['+'] =
 	  '<span style="background: #eeffee;">'
-	  .'[[File:Arrow-button-up-20px.png|link=Issuepedia:Debaticons|alt=up-arrow debaticon|support point (argues in support of the main point)]] ';
-	$this->arPointTplt['-'] = 
+	  .'[['.KWP_ICON_PRO_POINT.'|link=Issuepedia:Debaticons|alt=up-arrow debaticon|support point (argues in support of the main point)]] ';
+	$this->arPointTplt['-'] =
 	  '<span style="background: #ffeeee;">'
-	  .'[[File:Arrow-button-dn-20px.png|link=Issuepedia:Debaticons|alt=down-arrow debaticon|counterpoint (argues against the main point)]] ';
-//	$this->arPointTplt['*'] = 
+	  .'[['.KWP_ICON_CON_POINT.'|link=Issuepedia:Debaticons|alt=down-arrow debaticon|counterpoint (argues against the main point)]] ';
+//	$this->arPointTplt['*'] =
 //	  '<span style="background: #eeeeff;">[[File:Arrow-button-rt-25px.png|link=Issuepedia:Debaticons|alt=right-arrow debaticon|central claim of argument]] ';
 	$this->htPointTplt_end = '</span>';
     }
