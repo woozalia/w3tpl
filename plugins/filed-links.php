@@ -13,7 +13,7 @@ class w3tpl_module_FiledLinks extends w3tpl_module {
     protected function DB_read() {
 	if (empty($this->oDB)) {
 	    $dbr =& wfGetDB( DB_SLAVE );
-	    $oDB = new clsMWData($dbr);
+	    $oDB = new fcDataConn_MW($dbr);
 	    $this->oDB = $oDB;
 	}
 	return $this->oDB;
@@ -31,7 +31,8 @@ class w3tpl_module_FiledLinks extends w3tpl_module {
     protected function w3f_Links_forTopic(array $iArgs) {
 	global $wgContLang,$wgCapitalLinks;
 
-	$sTitle = clsMWData::NormalizeTitle($iArgs['title'],NS_MAIN);
+	//$sTitle = clsMWData::NormalizeTitle($iArgs['title'],NS_MAIN);
+	$sTitle = fcDataConn_MW::NormalizeTitle($iArgs['title'],NS_MAIN);
 	$sTopic = clsArray::Nz($iArgs,'topic','Data/links');
 	$sXTopic =  clsArray::Nz($iArgs,'xtopic');
 
@@ -80,7 +81,7 @@ class w3tpl_module_FiledLinks extends w3tpl_module {
     cl_from <- $idFrom is the ID of a Title containing a category tag
     cl_to is the text of the name (no namespace) of the category being linked to
 */
-	
+
 /* This doesn't do parameter replacement, which we need now
 	    $sql = <<<__END__
 SELECT
@@ -162,7 +163,7 @@ __END__;
 	    } else {
 		$out = '<small>No links filed yet for topic &ldquo;'.$strTitleRaw.'&rdquo;.</small>';
 	    }
-	    $dbr->freeResult( $res );	
+	    $dbr->freeResult( $res );
 	} else {
 	    $out = 'Could not load requested title ['.$strTitleRaw.'].';
 	}
@@ -196,8 +197,8 @@ __END__;
 	    if (is_array($arProps)) {
 		if (array_key_exists('data>',$arProps)) {
 		    $ok = TRUE;
-		    $strDate = NzArray($arProps,'data>date');
-		    $strTitle = NzArray($arProps,'data>title');
+		    $strDate = clsArray::Nz($arProps,'data>date');
+		    $strTitle = clsArray::Nz($arProps,'data>title');
 		    if (is_null($strTitle)) {
 			$htLine = 'No title found. Here is what was found:<pre>'.print_r($arProps,TRUE).'</pre>';
 		    } else {
@@ -207,11 +208,11 @@ __END__;
 			} else {
 			    $htSource = '';
 			}
-			
+
 			if (array_key_exists('data>textshort',$arProps)) {
 			    $wtSumm = $arProps['data>textshort'];
 			} else {
-			    $wtSumm = '[2]'.NzArray($arProps,'data>text');	// this may need to be shortened somehow
+			    $wtSumm = '[2]'.clsArray::Nz($arProps,'data>text');	// this may need to be shortened somehow
 			    // maybe after the first \n?
 			}
 			$htSumm = $this->Parse_WikiText($wtSumm);

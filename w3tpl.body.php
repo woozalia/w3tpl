@@ -27,10 +27,31 @@
     <dump>: show list of all variables (with values) and functions (with code)
     <if>, <else>: control structure
     <xploop list="\demarcated\list" repl=string-to-replace sep=separator></xploop>: Same as {{#xploop}}, but uses varname instead of $s$
-    TO-DO <w3tpl></w3tpl>: The language itself
-	    parser should later be optimized for execution time by using PHP intrinsic string fx instead of PHP-code loop
+    TO-DO
+      1. Verify that this works even without $wgW3_func & $wgW3_funcs being global. If so, can the globals be eliminated elsewhere?
+      2. <w3tpl></w3tpl>: The language itself
+	    parser should later be optimized for execution time by using PHP intrinsic string fx (XML?) instead of PHP-code loop
 */
 
-// TODO: tag functions should be made into static methods here
+// TODO: tag functions should be made into subclasses of a "tag" base class
 class clsW3TPL_tags {
+}
+
+class w3cStoredFunctions extends clsContentProps {
+    /*----
+      ACTION: create a function object from stored data
+    */
+    public function LoadFunc($sName) {
+	$key = ">fx()>$sName";
+	$ar = $this->LoadVals($key);
+	$ar['name'] = $sName;	// why is this not being set in LoadVals()?
+	$w3oFunc = new clsW3Function($this->MW_ParserObject(),$sName);
+	$w3oFunc->PutDef($ar);
+
+	// 2015-09-28 nothing is done with these two variables. Elsewhere they are declared as globals...
+	//$wgW3_func = $objFunc;
+	//$wgW3_funcs[$sName] = $objFunc;
+
+	return $w3oFunc;
+    }
 }
