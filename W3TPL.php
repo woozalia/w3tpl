@@ -14,7 +14,7 @@ $wgExtensionCredits['other'][] = array(
 	'description' => 'Woozle\'s Wacky Wiki Text Processing Language',
 	'author' => 'Woozle (Nick) Staddon',
 	'url' => 'http://htyp.org/W3TPL',
-	'version' => '0.65 2015-09-28'
+	'version' => '0.66 2016-03-16'
 );
 $dir = dirname(__FILE__) . '/';
 
@@ -125,7 +125,8 @@ function W3GetSysData($iName) {
     }
     $strPart0 = $strParts[0];
 
-    W3AddTrace('PART 0: ['.$strPart0.'] PART 1: ['.$strParam.']');
+    $sDbg = "PART 0: [$strPart0] PART 1: [$strParam]";
+    W3AddTrace($sDbg);
     switch ($strPart0) {
       case 'title':
 	switch ($strParam) {
@@ -342,6 +343,7 @@ function W3GetVal($iName,$iIndex=NULL) {
 	}
 	$objVar->Trace();
 	$objVar->Fetch();
+
 	$strVal = $objVar->Value;
 	return $strVal;
 }
@@ -1361,6 +1363,8 @@ function efW3For( $input, $args, $parser ) {
     which usually means lots of extra blank lines and indents in the code. We don't want these in the output.
   HISTORY:
     2012-01-15 returning NULL now causes UNIQ-QINU tag to be emitted; changing to '' seems to fix this.
+    2016-03-16 $funcName seems to be getting set to a blank -- so now pulling it
+      from the first element of $args if it's blank after going through the $args loop.
 */
 function efW3Func( $input, $args, $parser ) {
 	global $wgW3_funcs;
@@ -1375,6 +1379,8 @@ The parser apparently sets the argument's value to its name if no value is speci
 This is a sort of bug for this purpose, but maybe it makes sense in other contexts.
 The real way to get around it is to use <w3tpl> block syntax* instead of the <func> tag.
   *to be implemented
+
+2016-03-16 This doesn't work if the func has no other arguments.
 */
 			if ($value != $name) {
 				$funcArgs[$name] = $value;
@@ -1386,10 +1392,22 @@ The real way to get around it is to use <w3tpl> block syntax* instead of the <fu
 		}
 		$pcnt++;
 	}
-	if (isset($funcName)) {
-	    W3AddTrace('FUNC &ldquo;'.$funcName.'&rdquo;');
-	    $objFunc = new clsW3Function($parser,$funcName,$funcArgs,$input);
-	    $wgW3_funcs[$funcName] = $objFunc;
+	if (empty($funcName)) {
+	    // if the function name isn't explicitly set, then it's the first key:
+	    $akeys = array_keys($args);
+	    $funcName = $akeys[0];
+	    if (empty($funcName)) {	// still?
+		$sMsg = "<br>FUNC: Internal error - blank function name. Arguments:"
+		  .fcArray::Render($args,1)
+		  ;
+		echo $sMsg;
+		W3AddTrace($sMsg);
+	    }
+	}
+
+	W3AddTrace('FUNC &ldquo;'.$funcName.'&rdquo;');
+	$objFunc = new clsW3Function($parser,$funcName,$funcArgs,$input);
+	$wgW3_funcs[$funcName] = $objFunc;
 
 // store the function in page_props (added 2011-07-24)
 // -- we'll use prefix-marked strings to store the function data, using ">" as the prefix
@@ -1417,11 +1435,8 @@ The real way to get around it is to use <w3tpl> block syntax* instead of the <fu
 	    $arProps['fx()'][$funcName] = $arFProps;
 */
 
-	    $objProps = new clsContentProps($parser);
-	    $objProps->SaveArray($objFunc->GetDef());
-	} else {
-	    W3AddTrace('FUNC: function name not set! input=['.$input.']');
-	}
+	$objProps = new clsContentProps($parser);
+	$objProps->SaveArray($objFunc->GetDef());
 	return '';
 }
 /*-----
@@ -1449,7 +1464,6 @@ function efW3Get( $input, $args, $parser ) {
 	$strName = NULL;
     }
     W3AddTrace(' - name=['.$strName.']');
-$doDebug = FALSE;
 
 // get the starting value
     if (isset($args['val'])) {

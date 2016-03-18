@@ -16,7 +16,7 @@ class w3tpl_module_Blogging extends w3tpl_module_SMWLinks {
 	TODO - user: show only entries by this user; if NULL or not set, show all users
     */
     public function w3f_ShowBlogEntryBriefs(array $iArgs) {
-    
+
 	$w3oData = $this->Engine();
 	$ar = $w3oData->GetPages_forPropVal('Page type','Blog post');
 
@@ -48,7 +48,7 @@ class w3tpl_module_Blogging extends w3tpl_module_SMWLinks {
     }
 
     public function Engine() {
-	$dbr =& wfGetDB( DB_SLAVE );
+	$dbr = wfGetDB( DB_SLAVE );
 	$db = new fcDataConn_SMW($dbr);
 	return $db;
     }

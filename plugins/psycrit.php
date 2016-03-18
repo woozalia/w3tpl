@@ -5,6 +5,7 @@
     2011-10-16 w3tpl code started to get too ugly, so pushing out some functionality into callable modules.
     2011-10-28 adapting filed-links.php to media-links.php
     2012-08-07 started adapting for PsyCrit
+    2016-03-17 changed "=& wfGetDB()" to "= wfGetDB()" to remove strict-mode errors
 */
 require_once('filed-links.php');
 require_once('smw-links.php');
@@ -15,7 +16,7 @@ class w3tpl_module_PsyCrit extends w3tpl_module_FiledLinks {
       TODO: this should eventually be an override
     */
     public function Engine() {
-	$dbr =& wfGetDB( DB_SLAVE );
+	$dbr = wfGetDB( DB_SLAVE );
 	$db = new PsyCrit_Data($dbr);
 	return $db;
     }
@@ -33,7 +34,7 @@ class w3tpl_module_PsyCrit extends w3tpl_module_FiledLinks {
       TODO: Move most of this code into the PsyCrit_Page class
     */
     public function w3f_Show_Target_Page() {
-	$wtOut = 
+	$wtOut =
 	  '[[page type::specs]]'
 	  .'[[specs type::target]]'
 	  .'[[format version::3]]'
@@ -115,9 +116,9 @@ class w3tpl_module_PsyCrit extends w3tpl_module_FiledLinks {
 	    $out = $this->RenderStart();
 	    while ( $row = $dbr->fetchObject($res) ) {
 		$sPgTitle = $row->page_title;
-		
+
 		// get the display title (not the wiki-page title) for each Target article
-		
+
 		$arArgs = array($sPgTitle,'?title','link=none');
 		list( $oQuery, $oParams ) = SMWQueryProcessor::getQueryAndParamsFromFunctionParams(
 		  $arArgs,
@@ -156,7 +157,7 @@ class w3tpl_module_PsyCrit extends w3tpl_module_FiledLinks {
 	  .' WHERE (cl_to="Specs/response");';
 
 	// get a database connection object
-	$dbr =& wfGetDB( DB_SLAVE );
+	$dbr = wfGetDB( DB_SLAVE );
 	// execute SQL and get data
 	$res = $dbr->query($sql);
 
@@ -169,7 +170,7 @@ class w3tpl_module_PsyCrit extends w3tpl_module_FiledLinks {
 	$res = $this->GetAllResponses();
 
 	// process the data
-	$dbr =& wfGetDB( DB_SLAVE );
+	$dbr = wfGetDB( DB_SLAVE );
 	if ($dbr->numRows($res)) {
 	    $idLast = 0;
 	    while ( $row = $dbr->fetchObject($res) ) {
@@ -259,8 +260,8 @@ class w3tpl_module_PsyCrit extends w3tpl_module_FiledLinks {
 		array $  	params,
 		$  	context = self::INLINE_QUERY,
 		$  	format = '',
-		array $  	extraprintouts = array()	 
-	) 	
+		array $  	extraprintouts = array()
+	)
 */
 //	$dbr =& wfGetDB( DB_SLAVE );
 //	$db = new csSMWData($dbr);
@@ -291,7 +292,7 @@ class w3tpl_module_PsyCrit extends w3tpl_module_FiledLinks {
 */
     protected function RenderLine($iTitle,array $arProps=NULL) {
 	throw new exception('What calls this?');
-    
+
 	$objTitle = Title::newFromID($iTitle);
 
 	$out = '{{faint|'.respDate.'}} <b>'.respTitle.'</b> <i>'.respSnip.'</i> [['.resp_pg_title.'|'.respRef.']]';
@@ -353,7 +354,7 @@ class PsyCrit_Data extends fcDataConn_SMW {
 		    $strCoOf = $objMTitle->GetPropVal('Content_of');
 		    if ($strCoOf != '') {
 			$strFmt = $objMTitle->GetPropVal('Format');
-			$htLink = 
+			$htLink =
 			  '[[media:'.$txtMTitle.'|'.$strFmt.']]'
 			  .'<sup>[[:'.$txtMFTitle.'|i]]</sup>';
 		    } else {
@@ -395,7 +396,7 @@ class PsyCrit_Page extends w3smwPage {
 	}
 	$htTarget = $this->GetPropVal('target');	// TODO: handle multiple targets, link to target
 
-	$wtHide = 
+	$wtHide =
 	  '[[page type::specs]]'
 	  .'[[specs type::response]]'
 	  .'[[format version::3]]'
@@ -436,7 +437,7 @@ class PsyCrit_Page extends w3smwPage {
 		    $txtMFTitle = $objMTitle->TitleFull();
 
 		    $strFmt = $objMTitle->GetPropVal('Format');
-		    $htLink = 
+		    $htLink =
 		      '[[media:'.$txtMTitle.'|'.$strFmt.']]'
 		      .'<sup>[[:'.$txtMFTitle.'|i]]</sup>';
 
