@@ -1,4 +1,4 @@
-<?php
+<?php namespace w3tpl;
 /*
   PURPOSE: SMW listing management functions for w3tpl
   REQUIRES: filed-links.php
@@ -8,19 +8,22 @@
     2012-01-24 split off SMW stuff from filed-links.php to smw-links.php
     2013-02-14 w3f_SiteGroupListing() now works for G+
     2015-03-14 removed explicit check for needed library
+    2018-01-22 update to work with latest w3tpl
 */
 
-clsLibrary::Load_byName('ferreteria.db.2');
-clsLibrary::Load_byName('ferreteria.mw.2');
+//clsLibrary::Load_byName('ferreteria.db.2');
+//clsLibrary::Load_byName('ferreteria.mw.2');
 
-new w3tpl_module_SMWLinks();	// class will self-register
+//new w3tpl_module_SMWLinks();	// class will self-register
+$csModuleClass = 'xcModule_SMWLinks';
 
-class w3tpl_module_SMWLinks extends w3tpl_module {
+class xcModule_SMWLinks extends xcModule_SMW {
 
     /*----
       RETURNS: Wzl data object for the MW/SMW database
       TODO: this should eventually be an override
     */
+    
     public function Engine() {
 	$dbr =& wfGetDB( DB_SLAVE );
 	$db = new fcDataConn_SMW($dbr);
@@ -41,7 +44,7 @@ class w3tpl_module_SMWLinks extends w3tpl_module {
 */
 
 	$out = '<ul>';
-	$objPage = new w3smwPage($this);
+	$objPage = new fcPageData_SMW($this);
 	foreach ($ar as $key => $arRow) {
 	    $idSMW = $arRow['s_id'];	// for future coding reference; not currently used
 	    $idNSpace = $arRow['s_namespace'];

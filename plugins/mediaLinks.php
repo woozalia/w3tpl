@@ -1,15 +1,15 @@
-<?php
+<?php namespace w3tpl;
 /*
   PURPOSE: media link-listing functions for w3tpl
   HISTORY:
     2011-10-16 w3tpl code started to get too ugly, so pushing out some functionality into callable modules.
     2011-10-28 adapting filed-links.php to media-links.php
+    2017-12-13 adapting to use format in classes/modules.php (with namespace)
 */
-require_once('filed-links.php');
+//require_once('filed-links.php');
+xcModule::LoadFile('filedLinks');
 
-new w3tpl_module_MediaLinks();	// class will self-register
-
-class w3tpl_module_MediaLinks extends w3tpl_module_FiledLinks {
+class xcModule_MediaLinks extends xcModule_FiledLinks {
 
     // FUNCTIONS FOR THIS MODULE
       // inherits w3f_Links_forTopic() without modification
@@ -25,7 +25,7 @@ class w3tpl_module_MediaLinks extends w3tpl_module_FiledLinks {
 	return $out;
     }
     protected function RenderLine($iTitle,array $arProps=NULL) {
-	$objTitle = Title::newFromID($iTitle);
+	$objTitle = \Title::newFromID($iTitle);
 
 	$out = "\n<tr><td>";
 
@@ -40,7 +40,8 @@ class w3tpl_module_MediaLinks extends w3tpl_module_FiledLinks {
 		    $ok = TRUE;
 		    $htLine = '<a title="lyrics and other data" href="'.$urlMain.'">'.$strTitle.'</a>';
 		    $htLine .= '</td><td>';
-		    $strLinks = $this->Parse_WikiText($arProps['download-links']);
+		    //$strLinks = $this->Parse_WikiText($arProps['download-links']);
+		    $strLinks = $arProps['download-links'];	// 2017-12-15 now in convenient pre-parsed form
 		    $htLine .= $strLinks;
 		}
 	    }
@@ -55,3 +56,6 @@ class w3tpl_module_MediaLinks extends w3tpl_module_FiledLinks {
 	return $out;
     }
 }
+
+//new w3tpl_module_MediaLinks();	// class will self-register
+

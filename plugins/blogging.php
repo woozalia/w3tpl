@@ -1,13 +1,14 @@
-<?php
+<?php namespace w3tpl;
 /*----
   PURPOSE: wiki-based blogging for w3tpl
   HISTORY:
     2012-11-02 rewriting essentially from scratch after Kate/server glitch
 */
 
-require_once('smw-links.php');
+//require_once('smw-links.php');
+xcModule::LoadModule('smw-links');	// defines xcModule_SMWLinks
 
-class w3tpl_module_Blogging extends w3tpl_module_SMWLinks {
+class xcModule_Blogging extends xcModule_SMWLinks {
     /*----
       ACTION: show summaries for applicable blog entries
       INPUT:
@@ -46,19 +47,12 @@ class w3tpl_module_Blogging extends w3tpl_module_SMWLinks {
 	    return '<i>no blog entries yet</i>';
 	}
     }
-
-    public function Engine() {
-	$dbr = wfGetDB( DB_SLAVE );
-	$db = new fcDataConn_SMW($dbr);
-	return $db;
-    }
-
 }
 
-class Blog_Entry extends w3smwPage {
+class Blog_Entry extends \fcPageData_SMW {
     public function RenderSummary() {
 	$strRTitle = $this->GetPropVal('Title');	// raw title
-	$strDTitle = fcDataConn_MW::VisualizeTitle($strRTitle);
+	$strDTitle = \fcDataConn_MW::VisualizeTitle($strRTitle);
 
 	$mwoTitle = $this->MW_Object();
 	$urlTitle = $mwoTitle->getFullURL();
@@ -89,4 +83,4 @@ class Blog_Entry extends w3smwPage {
     }
 }
 
-new w3tpl_module_Blogging();	// class will self-register
+//new w3tpl_module_Blogging();	// class will self-register

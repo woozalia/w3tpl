@@ -2,10 +2,13 @@
 /*
   PURPOSE: class for managing tag-variables in w3tpl
   HISTORY:
+    2012-06-03 IS THERE ANY REASON not to rename clsW3VarName to clsW3Var?
+    2015-09-10 Renamed clsW3VarName to clsW3Var.
     2015-09-28 extracted from W3TPL.php
+    2017-10-29 renamed clsW3Var -> xcVar
 */
 
- class clsW3Var {
+ class xcVar {
 /*
   RULES:
     * An *expression* can be:
@@ -17,9 +20,6 @@
     ** array index - "$anArray[index_expression]" where "index_expression" is an expression
     * We automatically find the value of all inner elements as needed, but leave the outermost unresolved
 	in order to allow for different operations depending on context.
-  HISTORY:
-    2012-06-03 IS THERE ANY REASON not to rename clsW3VarName to clsW3Var?
-    2015-09-10 Renamed clsW3VarName to clsW3Var.
 */
 	public $Expr;	// code-expression to parse
 	public $NameRaw;	// unparsed name

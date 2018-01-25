@@ -1,4 +1,4 @@
-<?php
+<?php namespace w3tpl;
 /*
   PURPOSE: media link-listing functions for w3tpl
   HISTORY:
@@ -7,19 +7,23 @@
     2012-08-07 started adapting for PsyCrit
     2016-03-17 changed "=& wfGetDB()" to "= wfGetDB()" to remove strict-mode errors
 */
-require_once('filed-links.php');
-require_once('smw-links.php');
+//require_once('filed-links.php');
+//require_once('smw-links.php');
+xcModule::LoadModule('filed-links');	// defines xcModule_FiledLinks
+//xcModule::LoadModule('smw-links');	// defines xcModule_SMWLinks
 
-class w3tpl_module_PsyCrit extends w3tpl_module_FiledLinks {
+$csModuleClass = 'xcModule_PsyCrit';
+class xcModule_PsyCrit extends xcModule_FiledLinks {
     /*----
       RETURNS: Wzl data object for the MW/SMW database
       TODO: this should eventually be an override
     */
+    /* 2018-01-24 redundant; call GetDatabase() instead
     public function Engine() {
-	$dbr = wfGetDB( DB_SLAVE );
-	$db = new PsyCrit_Data($dbr);
+	$dbr = wfGetDB( DB_SLAVE );	// get MediaWiki database object
+	$db = new PsyCrit_Data($dbr);	// create wrapper database object
 	return $db;
-    }
+    } */
     // FUNCTIONS FOR THIS MODULE
       // inherits w3f_Links_forTopic() without modification
     protected function GetSQL_for_Targets() {
@@ -31,9 +35,41 @@ class w3tpl_module_PsyCrit extends w3tpl_module_FiledLinks {
 	return $sql;
     }
     /*----
+      INPUT: iRow = object whose fields are taken from the response page data
+      TODO: make this static or something
+    */
+    private function RenderSummary_forResponse($iRow) {
+	$strPTitle = $iRow->page_title;
+
+	$arOut['debug'] = '<pre>'.print_r($iRow,TRUE).'</pre>';
+
+	$smoTitle = new PsyCrit_Page();
+	$smoTitle->Use_Title_Named($strPTitle);
+
+	$txtDate = $smoTitle->GetPropVal('_dat');
+	$dtDate = strtotime($txtDate);
+	$wtDate = date('Y/m/d',$dtDate);
+
+	$strDTitle = DBkeyToDisplay($smoTitle->GetPropVal('Title'));
+	$wtLead =  $smoTitle->GetPropVal('Lead-in');
+
+	$wtCred =  $smoTitle->GetPropVal('Author/ref');
+
+	$wtOut = "{{faint|$wtDate}} '''$strDTitle''' ''$wtLead'' [[$strPTitle|$wtCred]]";
+
+	// TODO: media (downloads)
+
+	$arOut['wt'] = $wtOut;
+	$arOut['hdr'] = $smoTitle->GetPropVal('Listing section');
+	return $arOut;
+    }
+    
+    // ++ TAG API ++ //
+    
+    /*----
       TODO: Move most of this code into the PsyCrit_Page class
     */
-    public function w3f_Show_Target_Page() {
+    public function TagAPI_Show_Target_Page() {
 	$wtOut =
 	  '[[page type::specs]]'
 	  .'[[specs type::target]]'
@@ -41,7 +77,7 @@ class w3tpl_module_PsyCrit extends w3tpl_module_FiledLinks {
 	  .'[[category:specs/target]]';
 	$this->Parse_WikiText($wtOut);	// parse but don't show
 
-	$smoTitle = new PsyCrit_Page($this);
+	$smoTitle = new PsyCrit_Page();
 	$smoTitle->Use_GlobalTitle();
 
 	$out = $smoTitle->RenderBit_Keyname();
@@ -73,8 +109,8 @@ class w3tpl_module_PsyCrit extends w3tpl_module_FiledLinks {
       ACTION: Format the header (what goes above the main text) for the current Response article
       ASSUMES: current page is a Response article
     */
-    public function w3f_Show_Response_Header() {
-	$smoATitle = new PsyCrit_Page($this->Engine());
+    public function TagAPI_Show_Response_Header() {
+	$smoATitle = new PsyCrit_Page();
 	$smoATitle->Use_GlobalTitle();
 
 	$ar = $smoATitle->Render_ResponseHeader();
@@ -86,12 +122,13 @@ class w3tpl_module_PsyCrit extends w3tpl_module_FiledLinks {
       ACTION: list all responses to the current page
       ASSUMES: current page is a Target page
     */
-    public function w3f_List_Responses_toThis_summary() {
+    public function TagAPI_List_Responses_toThis_summary() {
+	throw new exception('Function not defined yet');
     }
     /*----
       ACTION: list all articles Targeted by this page
     */
-    public function w3f_List_Targets_forThis_ref() {
+    public function TagAPI_List_Targets_forThis_ref() {
 
 	// 1. Get targets list
 	$smoCTitle = new PsyCrit_Page($this->Engine());
@@ -102,11 +139,12 @@ class w3tpl_module_PsyCrit extends w3tpl_module_FiledLinks {
     /*----
       ACTION: list ALL Target articles, with a formatted description of each.
     */
-    public function w3f_List_Targets_summary() {
+    public function TagAPI_List_Targets_summary() {
 	$sql = $this->GetSQL_for_Targets();
 
 	// get a database connection object
-	$dbr =& wfGetDB( DB_SLAVE );
+	//$dbr =& wfGetDB( DB_SLAVE );
+	$dbr = static::GetDatabase_MW();
 	// execute SQL and get data
 	$res = $dbr->query($sql);
 
@@ -148,28 +186,20 @@ class w3tpl_module_PsyCrit extends w3tpl_module_FiledLinks {
 	}
 	return $out;
     }
-    // DEPRECATED
-    protected function GetAllResponses() {
-	$sql = 'SELECT * FROM'
-	  .' categorylinks AS cl'
-	  .' LEFT JOIN page AS p'
-	  .' ON cl_from=page_id'
-	  .' WHERE (cl_to="Specs/response");';
-
-	// get a database connection object
-	$dbr = wfGetDB( DB_SLAVE );
-	// execute SQL and get data
-	$res = $dbr->query($sql);
-
-	return $res;
-    }
     /*----
       ACTION: Lists all responses in summary form (multiline)
     */
-    public function w3f_List_Responses_summary(array $iArgs) {
-	$res = $this->GetAllResponses();
+    public function TagAPI_List_Responses_summary(array $iArgs) {
+	$rs = $this->GetAllResponses();
 
 	// process the data
+
+	if ($rs->HasRows()) {
+	    $idLast = 0;
+	    while ($rs->NextRow()) {
+		$arOut[] = $rs->RenderSummary();
+	
+	/* 2018-01-25 old
 	$dbr = wfGetDB( DB_SLAVE );
 	if ($dbr->numRows($res)) {
 	    $idLast = 0;
@@ -213,38 +243,31 @@ class w3tpl_module_PsyCrit extends w3tpl_module_FiledLinks {
 	$wtPfx = clsArray::Nz($iArgs,'pfx');
 	$wtSfx = clsArray::Nz($iArgs,'sfx');
 	$wtOut = $this->Parse_WikiText($wtPfx.$out.$wtSfx);	// parse it all together
-
+	*/
 	return $wtOut;
 	//return $out;
     }
-    /*----
-      INPUT: iRow = object whose fields are taken from the response page data
-      TODO: make this static or something
-    */
-    private function RenderSummary_forResponse($iRow) {
-	$strPTitle = $iRow->page_title;
 
-	$arOut['debug'] = '<pre>'.print_r($iRow,TRUE).'</pre>';
+    // -- TAG API -- //
 
-	$smoTitle = new PsyCrit_Page($this);
-	$smoTitle->Use_Title_Named($strPTitle);
+    // DEPRECATED
+    protected function GetAllResponses() {
+	$t = $this->ResponseQuery();
+	$rs = $t->SelectRecords('cl_to="Specs/response"');
+	/*
+	$sql = 'SELECT * FROM'
+	  .' categorylinks AS cl'
+	  .' LEFT JOIN page AS p'
+	  .' ON cl_from=page_id'
+	  .' WHERE (cl_to="Specs/response");';
+	// get a database connection object
+	$dbr = static::GetDatabase_MW();
+	// execute SQL and get data
+	$res = $dbr->query($sql);
 
-	$txtDate = $smoTitle->GetPropVal('_dat');
-	$dtDate = strtotime($txtDate);
-	$wtDate = date('Y/m/d',$dtDate);
-
-	$strDTitle = DBkeyToDisplay($smoTitle->GetPropVal('Title'));
-	$wtLead =  $smoTitle->GetPropVal('Lead-in');
-
-	$wtCred =  $smoTitle->GetPropVal('Author/ref');
-
-	$wtOut = "{{faint|$wtDate}} '''$strDTitle''' ''$wtLead'' [[$strPTitle|$wtCred]]";
-
-	// TODO: media (downloads)
-
-	$arOut['wt'] = $wtOut;
-	$arOut['hdr'] = $smoTitle->GetPropVal('Listing section');
-	return $arOut;
+	return $res;
+	*/
+	return $rs;
     }
     // development version for trying to figure out SMW data schema
     public function w3f_List_Responses_dev() {
@@ -265,7 +288,7 @@ class w3tpl_module_PsyCrit extends w3tpl_module_FiledLinks {
 */
 //	$dbr =& wfGetDB( DB_SLAVE );
 //	$db = new csSMWData($dbr);
-	$db = $this->Engine();
+	$db = $this->GetDatabase();
 
 	$rs = $db->GetPages_forPropVal('Specs_type','Target');
 
@@ -336,7 +359,7 @@ class w3tpl_module_PsyCrit extends w3tpl_module_FiledLinks {
     }
 }
 
-class PsyCrit_Data extends fcDataConn_SMW {
+class PsyCrit_Data extends \fcDataConn_SMW {
     /*----
       RETURNS: short list of responses to the given keyname
 	or NULL if none found.
@@ -372,7 +395,7 @@ class PsyCrit_Data extends fcDataConn_SMW {
     }
 }
 
-class PsyCrit_Page extends w3smwPage {
+class PsyCrit_Page extends \fcPageData_SMW {
     protected $strKey;
 
     public function Keyname() {
@@ -531,4 +554,48 @@ class PsyCrit_Page extends w3smwPage {
     }
 }
 
-new w3tpl_module_PsyCrit();	// class will self-register
+class fctqPsyCritResponses extends fcTable_wSource_wRecords {
+
+    // ++ SQL: DATA READ ++ //
+
+    // OVERRIDE
+    protected function SourceString_forSelect() {
+	return 	  
+	  ' categorylinks AS cl'
+	  .' LEFT JOIN page AS p'
+	  .' ON cl_from=page_id'
+	  ;
+    }
+    
+    // -- SQL: DATA READ -- //
+    // ++ OUTPUT ++ //
+
+    private function RenderSummary($iRow) {
+	$strPTitle = $iRow->page_title;
+
+	$arOut['debug'] = '<pre>'.print_r($iRow,TRUE).'</pre>';
+
+	$smoTitle = new PsyCrit_Page();
+	$smoTitle->Use_Title_Named($strPTitle);
+
+	$txtDate = $smoTitle->GetPropVal('_dat');
+	$dtDate = strtotime($txtDate);
+	$wtDate = date('Y/m/d',$dtDate);
+
+	$strDTitle = DBkeyToDisplay($smoTitle->GetPropVal('Title'));
+	$wtLead =  $smoTitle->GetPropVal('Lead-in');
+
+	$wtCred =  $smoTitle->GetPropVal('Author/ref');
+
+	$wtOut = "{{faint|$wtDate}} '''$strDTitle''' ''$wtLead'' [[$strPTitle|$wtCred]]";
+
+	// TODO: media (downloads)
+
+	$arOut['wt'] = $wtOut;
+	$arOut['hdr'] = $smoTitle->GetPropVal('Listing section');
+	return $arOut;
+    }
+
+    // -- OUTPUT -- //
+
+}

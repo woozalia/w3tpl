@@ -1,24 +1,27 @@
-<?php
+<?php namespace w3tpl;
 /*
   PURPOSE: Link-filing management functions for w3tpl
+  NOTE: psycrit code expects this to be named filed-links.php, not filedLinks.php
   HISTORY:
     2011-10-16 w3tpl code started to get too ugly, so pushing out some functionality into callable modules.
+    2017-12-13 this was adapted to use namespace w3tpl sometime recently (see classes/modules)
 */
+$csModuleClass = 'xcModule_FiledLinks';
+//new w3tpl_module_FiledLinks();	// class will self-register
 
-new w3tpl_module_FiledLinks();	// class will self-register
+class xcModule_FiledLinks extends xcModule {
 
-class w3tpl_module_FiledLinks extends w3tpl_module {
-
+/*
     private $oDB;
     protected function DB_read() {
 	if (empty($this->oDB)) {
-	    $dbr =& wfGetDB( DB_SLAVE );
-	    $oDB = new fcDataConn_MW($dbr);
+	    //$oDB = \fcApp_MW::Me()->GetDatabase();
+	    $oDB = $this->GetDatabase();
 	    $this->oDB = $oDB;
 	}
 	return $this->oDB;
     }
-
+*/
     // TAG-CALLABLE FUNCTIONS
 
     /*----
@@ -28,15 +31,15 @@ class w3tpl_module_FiledLinks extends w3tpl_module {
 	"topic" defaults to "Data/links"
 	"xtopic" is a single topic to exclude; later I'll implement xtopics, which will be a list
     */
-    protected function w3f_Links_forTopic(array $iArgs) {
+    protected function TagAPI_Links_forTopic(array $iArgs) {
 	global $wgContLang,$wgCapitalLinks;
 
 	//$sTitle = clsMWData::NormalizeTitle($iArgs['title'],NS_MAIN);
-	$sTitle = fcDataConn_MW::NormalizeTitle($iArgs['title'],NS_MAIN);
-	$sTopic = clsArray::Nz($iArgs,'topic','Data/links');
-	$sXTopic =  clsArray::Nz($iArgs,'xtopic');
+	$sTitle = \fcDataConn_MW::NormalizeTitle($iArgs['title'],NS_MAIN);
+	$sTopic = \fcArray::Nz($iArgs,'topic','Data/links');
+	$sXTopic =  \fcArray::Nz($iArgs,'xtopic');
 
-	$db = $this->DB_read();
+	$db = \fcApp::Me()->GetDatabase();
 	$arrTiI = $db->Titles_forTopic_arr($sTitle);	// titles having $sTitle as topic
 	$arrToI = $db->Titles_forTopic_arr($sTopic);	// titles having $sTopic as topic
 	$arrExc = $db->Titles_forTopic_arr($sXTopic);	// titles having xtopic
@@ -71,9 +74,9 @@ class w3tpl_module_FiledLinks extends w3tpl_module {
 	    $sTopic = ucfirst($sTopic);
 	    $sXTopic = ucfirst($sXTopic);
 	}
-	$objTitle = Title::newFromText($sTitleRaw);
-	if (is_object($objTitle)) {
-	    $sqlTitle = $objTitle->getDBkey();
+	$mwoTitle = \Title::newFromText($sTitleRaw);
+	if (is_object($mwoTitle)) {
+	    $sqlTitle = $mwoTitle->getDBkey();
 	    //$strTopicSQL = SQLValue($strTopicRaw);
 	    //$strTopicNS = $wgContLang->getNSText( NS_CATEGORY );
 /*
@@ -187,24 +190,24 @@ __END__;
 	return '</ul>';
     }
     protected function RenderLine($idTitle,array $arProps=NULL) {
-	$objTitle = Title::newFromID($idTitle);
+	$mwoTitle = \Title::newFromID($idTitle);
 
-	if (is_object($objTitle)) {
-	    $objTalk = $objTitle->getTalkPage();
-	    $urlMain = $objTitle->getLinkUrl();
-	    $urlTalk = $objTalk->getLinkUrl();
+	if (is_object($mwoTitle)) {
+	    $mwoTalk = $mwoTitle->getTalkPage();
+	    $urlMain = $mwoTitle->getLinkUrl();
+	    $urlTalk = $mwoTalk->getLinkUrl();
 	    $ok = FALSE;
 	    if (is_array($arProps)) {
 		if (array_key_exists('data>',$arProps)) {
 		    $ok = TRUE;
-		    $strDate = clsArray::Nz($arProps,'data>date');
-		    $strTitle = clsArray::Nz($arProps,'data>title');
-		    if (is_null($strTitle)) {
+		    $sDate = \fcArray::Nz($arProps,'data>date');
+		    $sTitle = \fcArray::Nz($arProps,'data>title');
+		    if (is_null($sTitle)) {
 			$htLine = 'No title found. Here is what was found:<pre>'.print_r($arProps,TRUE).'</pre>';
 		    } else {
 			if (array_key_exists('data>source',$arProps)) {
-			    $strSource = $arProps['data>source'];
-			    $htSource = ' at '.$strSource;
+			    $sSource = $arProps['data>source'];
+			    $htSource = ' at '.$sSource;
 			} else {
 			    $htSource = '';
 			}
@@ -212,26 +215,26 @@ __END__;
 			if (array_key_exists('data>textshort',$arProps)) {
 			    $wtSumm = $arProps['data>textshort'];
 			} else {
-			    $wtSumm = '[2]'.clsArray::Nz($arProps,'data>text');	// this may need to be shortened somehow
+			    $wtSumm = '[2]'.\fcArray::Nz($arProps,'data>text');	// this may need to be shortened somehow
 			    // maybe after the first \n?
 			}
 			$htSumm = $this->Parse_WikiText($wtSumm);
 
-			$htLine = '<b>'.$strDate.'</b> ';
+			$htLine = '<b>'.$sDate.'</b> ';
 			$htLine .= '<b>[</b><a title="discuss this article" href="'.$urlTalk.'">Talk</a>|<a title="summary and index data" href="'.$urlMain.'">Index</a><b>]</b> ';
 			if (array_key_exists('data>url',$arProps)) {
 			    $urlLink = $arProps['data>url'];
-			    $htLine .= '<i><a title="go to the original article'.$htSource.'" href="'.$urlLink.'">'.$strTitle.'</a></i>';
+			    $htLine .= '<i><a title="go to the original article'.$htSource.'" href="'.$urlLink.'">'.$sTitle.'</a></i>';
 			} else {
-			    $htLine .= '<i>'.$strTitle.'</i>';
+			    $htLine .= '<i>'.$sTitle.'</i>';
 			}
 			$htLine .= ' &sect; '.$htSumm;
 		    }
 		}
 	    }
 	    if (!$ok) {
-		$strTitle = $objTitle->getText();
-		$htLine = '<a title="summary and index data (this needs to be updated)" href="'.$urlMain.'">'.$strTitle.'</a>';
+		$sTitle = $mwoTitle->getText();
+		$htLine = '<a title="summary and index data (this needs to be updated)" href="'.$urlMain.'">'.$sTitle.'</a>';
 	    }
 	} else {
 	    $htLine = 'No page for ID='.$idTitle;

@@ -1,0 +1,31 @@
+{
+	"name": "w3tpl",
+	"author": [
+		"Woozle Hypertwin Staddon"
+	],
+	"license-name": "GPL-2.0+",
+	"url": "http://htyp.org/W3TPL",
+	"descriptionmsg": "w3tpl-desc",
+	"type": "parserhook",
+	"version": "2.0",
+	"MessagesDirs": {
+		"w3tpl": [
+			"i18n"
+		]
+	},
+	"Hooks": {
+		"ParserFirstCallInit": [
+			"w3tpl\\xcW3TPL::init"
+		]
+	},
+	"AutoloadClasses": {
+		"w3tpl\\xcW3TPL"	: "classes/w3tpl.php",
+		"w3tpl\\xcVar" 		: "classes/vars.php",
+		"w3tpl\\xcTag"		: "classes/tags.php",
+		"w3tpl\\xcTag_Var"	: "classes/tags.var.php",
+		"w3tpl\\xcFunc"		: "classes/func.php",
+		"w3tpl\\xcModule"	: "classes/modules.php",
+		"w3tpl\\xcStringTemplate_w3tpl"	: "classes/tplt.php"
+	},
+	"manifest_version": 1
+}
