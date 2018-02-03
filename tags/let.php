@@ -157,6 +157,12 @@ class xcTag_let extends xcTag_Var {
       RULES:
 	STAGE 1: input is retrieved from somewhere and put in $sInput
 	STAGE 2: operations are done on the input
+      ATTRIBUTES:
+	val: value to use as tag input
+	arg: name of POST field to retrieve as tag input
+	chr: ASCII number of character to use as tag input
+	self: start with current value of specified variable
+	  e.g. for incremental operations
       HISTORY:
 	2011-05-31 added "tag" attribute
 	2016-09-22 adapting as method of LET tag object
@@ -166,6 +172,7 @@ class xcTag_let extends xcTag_Var {
 	2017-11-01 copied code from DoFromScalar() to MainProcess(), which will replace it
     */
     protected function MainProcess() {
+	global $wgRequest;
 
 	$oVar = $this->GetVariableObject();
 	
@@ -185,7 +192,7 @@ class xcTag_let extends xcTag_Var {
 	    if ($this->ArgumentExists('val')) {
 		$sInput = $this->ArgumentValue('val');
 	    } elseif ($this->ArgumentExists('arg')) {
-		throw new exception('2017-11-07 This operation needs updating and a documented usage case.');
+		// usage case: form processing
 		$sCopy = $this->ArgumentValue('arg');	// don't do any indirection from user input (possible security hole)
 		$this->GetParser()->disableCache();
 		$sInput = $wgRequest->getVal($sCopy); // , $strDefault) -- maybe add feature later
@@ -223,19 +230,19 @@ class xcTag_let extends xcTag_Var {
 // 2017-10-30 what do we even want these functions to do?
 // 2017-11-07 also they'll need rewriting to operate on $sInput
 	if ($this->ArgumentExists('plus')) {
-	    throw new exception('2017-10-30 This operation needs updating and a documented usage case.');
+	    throw new \exception('2017-10-30 This operation needs updating and a documented usage case.');
 	    $valNew = $oVar->GetValue();	// save the newly-calculated value off to one side
 	    $oVar->Fetch();			// restore the prior value
 	    $oVar->SetValue += $valNew;	// add the new value to the prior value
 	}
 	if ($this->ArgumentExists('minus')) {
-	    throw new exception('2017-10-30 This operation needs updating and a documented usage case.');
+	    throw new \exception('2017-10-30 This operation needs updating and a documented usage case.');
 	    $valNew = $iVar->Value;		// save the newly-calculated value off to one side
 	    $iVar->Fetch();			// restore the prior value
 	    $iVar->Value -= $valNew;	// subtract the new value from the prior value
 	}
 	if ($this->ArgumentExists('min')) {
-	    throw new exception('2017-10-30 This operation needs updating and a documented usage case.');
+	    throw new \exception('2017-10-30 This operation needs updating and a documented usage case.');
 	    $valNew = $iVar->Value;		// save the newly-calculated value off to one side
 	    $iVar->Fetch();			// restore the prior value
 	    if ($valNew < $iVar->Value) {
@@ -243,7 +250,7 @@ class xcTag_let extends xcTag_Var {
 	    }
 	}
 	if ($this->ArgumentExists('max')) {
-	    throw new exception('2017-10-30 This operation needs updating and a documented usage case.');
+	    throw new \exception('2017-10-30 This operation needs updating and a documented usage case.');
 	    $valNew = $iVar->Value;		// save the newly-calculated value off to one side
 	    $iVar->Fetch();			// restore the prior value
 	    if ($valNew > $iVar->Value) {
@@ -252,12 +259,12 @@ class xcTag_let extends xcTag_Var {
 	}
 
 	if ($this->ArgumentExists('fmt')) {
-	    throw new exception('2017-11-07 This operation needs updating and a documented usage case.');
+	    throw new \exception('2017-11-07 This operation needs updating and a documented usage case.');
 	    $fmt = $this->ArgumentValue('fmt');
 	    $oVar->SetValue(sprintf($fmt,$oVar->GetValue()));
 	}
 	if ($this->ArgumentExists('encode')) {
-	    throw new exception('2017-11-07 This operation needs updating and a documented usage case.');
+	    throw new \exception('2017-11-07 This operation needs updating and a documented usage case.');
 	    $fmt = $this->ArgumentValue('encode');
 	    switch ($fmt) {
 	      case 'sql':	// make safe for use as an SQL value
@@ -266,7 +273,7 @@ class xcTag_let extends xcTag_Var {
 	    }
 	}
 	if ($this->ArgumentExists('tag')) {
-	    throw new exception('2017-11-07 This operation needs updating and a documented usage case.');
+	    throw new \exception('2017-11-07 This operation needs updating and a documented usage case.');
 	    // surround result with <> to make it into an HTML tag
 	    // 2017-11-07 Do we need two variants -- one to *show* a tag (&lt;tagname&gt;) and one to generate an actual tag?
 	    $sOld = trim($oVar->GetValue());
@@ -278,7 +285,7 @@ class xcTag_let extends xcTag_Var {
 	$sWith = $this->ArgumentValueNz('with');
 	$doRepl = !is_null($sRepl) || !is_null($sWith);
 	if ($doRepl) {
-	    throw new exception('2017-11-07 This operation needs updating and a documented usage case.');
+	    throw new \exception('2017-11-07 This operation needs updating and a documented usage case.');
 	    if (is_null($sRepl)) {
 		$sRepl = $input;
 	    } elseif (is_null($sWith)) {
@@ -348,7 +355,7 @@ class xcTag_let extends xcTag_Var {
 	    //}
 	}
 	if ($this->ArgumentExists('vars')) {
-	    throw new exception('2017-10-30 this will need some work');
+	    throw new \exception('2017-10-30 this will need some work');
 	    // It needs to pull variable values from somewhere.
 	    //  It previously used a w3tpl-specific descendant class, so maybe that needs to be resurrected.
 	    $oTplt = new fcTemplate_array($wgOptCP_SubstStart,$wgOptCP_SubstFinish,$oVar->GetValue());
@@ -404,7 +411,7 @@ class xcTag_let extends xcTag_Var {
 	  * using internal properties
     */
     protected function DoFromScalar() {
-	throw new exception('2017-11-01 replacing this with MainProcess().');
+	throw new \exception('2017-11-01 replacing this with MainProcess().');
 	global $wgRequest;
 	global $wgW3_func;
 	global $wgOptCP_SubstStart, $wgOptCP_SubstFinish;
@@ -457,7 +464,7 @@ class xcTag_let extends xcTag_Var {
 	    $oVar->SetValue($mwoParser->recursiveTagParse($oVar->GetValue()));
 	}
 	if ($this->ArgumentExists('vars')) {
-	    throw new exception('2017-10-30 this will need some work');
+	    throw new \exception('2017-10-30 this will need some work');
 	    // It needs to pull variable values from somewhere.
 	    //  It previously used a w3tpl-specific descendant class, so maybe that needs to be resurrected.
 	    $oTplt = new fcTemplate_array($wgOptCP_SubstStart,$wgOptCP_SubstFinish,$oVar->GetValue());
@@ -488,19 +495,19 @@ class xcTag_let extends xcTag_Var {
 // 2011-06-01 these functions will probably need some debugging, especially in how they interact with other functions
 // 2017-10-30 what do we even want these functions to do?
 	if ($this->ArgumentExists('plus')) {
-	    throw new exception('2017-10-30 This operation needs a documented usage case.');
+	    throw new \exception('2017-10-30 This operation needs a documented usage case.');
 	    $valNew = $oVar->GetValue();	// save the newly-calculated value off to one side
 	    $oVar->Fetch();			// restore the prior value
 	    $oVar->SetValue += $valNew;	// add the new value to the prior value
 	}
 	if ($this->ArgumentExists('minus')) {
-	    throw new exception('2017-10-30 This operation needs a documented usage case.');
+	    throw new \exception('2017-10-30 This operation needs a documented usage case.');
 	    $valNew = $iVar->Value;		// save the newly-calculated value off to one side
 	    $iVar->Fetch();			// restore the prior value
 	    $iVar->Value -= $valNew;	// subtract the new value from the prior value
 	}
 	if ($this->ArgumentExists('min')) {
-	    throw new exception('2017-10-30 This operation needs a documented usage case.');
+	    throw new \exception('2017-10-30 This operation needs a documented usage case.');
 	    $valNew = $iVar->Value;		// save the newly-calculated value off to one side
 	    $iVar->Fetch();			// restore the prior value
 	    if ($valNew < $iVar->Value) {
@@ -508,7 +515,7 @@ class xcTag_let extends xcTag_Var {
 	    }
 	}
 	if ($this->ArgumentExists('max')) {
-	    throw new exception('2017-10-30 This operation needs a documented usage case.');
+	    throw new \exception('2017-10-30 This operation needs a documented usage case.');
 	    $valNew = $iVar->Value;		// save the newly-calculated value off to one side
 	    $iVar->Fetch();			// restore the prior value
 	    if ($valNew > $iVar->Value) {
@@ -569,7 +576,7 @@ class xcTag_let extends xcTag_Var {
 	}
     }
     protected function DoFromArray () {
-	throw new exception('2017-11-01 does anything actually use this now?');
+	throw new \exception('2017-11-01 does anything actually use this now?');
 	$doSort = $this->ArgumentExists('sort');
 
 	if ($doSort) {

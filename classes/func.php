@@ -163,14 +163,18 @@ class xcFunc {
 	
 	$sArgs = NULL;
 	$arArgs = $this->GetArguments();
-	if (!is_array($arArgs)) {
-	    throw new \exception('w3tpl:func internal error: non-array received for tag arguments');
-	}
-	foreach ($arArgs as $sName => $sValue) {
-	    if (!is_null($sArgs)) {
-		$sArgs .= ' ,';
+	if (!is_null($arArgs)) {
+	    if (!is_array($arArgs)) {
+		echo 'arArgs:'.\fcArray::Render($arArgs);
+		$sName = $this->GetName();
+		throw new \exception("w3tpl:<func> internal error: non-array received for tag arguments to function $sName().");
 	    }
-	    $sArgs .= $sName . '=' . $sValue;
+	    foreach ($arArgs as $sName => $sValue) {
+		if (!is_null($sArgs)) {
+		    $sArgs .= ' ,';
+		}
+		$sArgs .= $sName . '=' . $sValue;
+	    }
 	}
 	
 	$sParams = NULL;

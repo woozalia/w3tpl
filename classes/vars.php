@@ -62,8 +62,13 @@ class xcVar {
     static protected function VariableExists($sName) {
 	return array_key_exists($sName,self::$arVars);
     }
+    // ASSUMES: variable exists
+    static protected function GetVariableObject($sName) {
+	return self::$arVars[$sName];
+    }
     /*----
       INPUT: $sName = name by which this should be saved for later use; NULL = temp variable (used for parsing)
+      TODO: should probably be renamed SpawnVariableObject()
     */
     static protected function SpawnVariable($sName=NULL) {
 	$sClass = get_called_class();	// static equivalent for get_class($this)
@@ -74,15 +79,17 @@ class xcVar {
 	}
 	return $oVar;
     }
-/*    static protected function LookupVariable($sName) {
-	if (self::VarExists($sName)) {
-	    $oVar = self::GetVars()[$sName];
+    /*-----
+      HISTORY:
+	2018-01-28 created; why didn't this already exist?
+    */
+    static protected function MakeVariableObject($sName) {
+	if (self::VariableExists($sName)) {
+	    $oVar = self::GetVariableObject($sName);
 	} else {
-	    return NULL;
+	    $oVar = self::SpawnVariable($sName);
 	}
-    } */
-    static protected function GetVariableObject($sName) {
-	return self::GetVars()[$sName];
+	return $oVar;
     }
     // PUBLIC so tags can look up values
     static public function GetVariableValue($sName) {
@@ -110,33 +117,38 @@ class xcVar {
     
     /*----
       ACTION: creates/retrieves a variable-object from a descriptor in script syntax
+      TODO: Should probably be renamed MakeVariable_fromExpression(), because it checks for existing var
       INPUT: $sExpr = expression that evaluates to a name
 	Must be a regular (non-sysvar) variable.
 	May include array offset.
 	Should not include the "$".
        RETURNS: discovered or created variable object
       PUBLIC because variable-accessing tags (<let>,<get>...) need to use it
+      NOTE: Does not support @vars because those are actually values, not variables.
       HISTORY:
 	2017-10-30 was not working before; wasn't really written, even
+	2018-01-28 removing support for arrays; brackets will be treated as part of variable name
     */
     static public function GetVariable_fromExpression($sExpr,$doCreate=FALSE) {
 	// normalize all name strings to lower case
 	$sExpr = strtolower($sExpr);
 
+	/*
 	if (substr($sExpr, -1) == ']') {	// is the expression an array element?
 	
 	    // name includes index offset, so parse as array element
 	    $idxOpen = strpos($sExpr,'[');
 	    if ($idxOpen) {
-		$sElem = substr($sExpr,$idxOpen);
+		$sElemOuter = substr($sExpr,$idxOpen);
+		$sElemInner = substr($sElemOuter,1,strlen($sElemOuter)-2);
 		$sBase = substr($sExpr,0,$idxOpen);
-		echo "ELEM=[$sElem] BASE=[$sBase]";
-		throw new exception('2017-10-30 not finished');
+		$oBase = self::MakeVariableObject($sBase);
+		echo "ELEM=[$sElemInner] BASE=[$sBase]";
 		$oVar = $this->CreateNode_fromScriptIndex($sElem);
 	    } else {
-		throw new exception('TODO: report malformed variable here');
+		throw new \exception('TODO: report malformed variable here');
 	    }
-	} else {
+	} else { */
 	    // expression is a literal variable name
 	    if (self::VariableExists($sExpr)) {
 		$oVar = $oVar = self::GetVariableObject($sExpr);
@@ -147,7 +159,7 @@ class xcVar {
 		    $oVar = NULL;
 		}
 	    }
-	}
+	//}
 	return $oVar;
     }
     /*----
@@ -620,17 +632,17 @@ class xcVar {
       ACTION: Creates a node and sets the node's array index from the first bracketed expression.
 	Passes any remaining string to the node to parse out any additional subnodes.
       RETURNS: final variable object created
-      ASSUMES: First character is '['.
       HISTORY:
 	2016-09-19 written
+	2018-01-28 used to assume first character is '[', but now brackets are stripped off
     */
     protected function CreateNode_fromScriptIndex($sElem) {
 	throw new exception('2017-11-02 This will need checking.'); // This method of doing arrays is maybe different.
 	// get the first bracketed expression
-	$idxShut = strpos($sElem,']');		// TODO: allow for recursive array elements - array1['index'][$array2[index]]
-	$sExpr = substr($sElem,1,$idxShut-1);	// expression for new node's index
+	$idxShut = strpos($sElem,']');
+	$sExpr = substr($sElem,1,$idxShut-1);		// expression for new node's index
 	$sIndex = $this->ParseExprValue($sExpr);	// index for new node
-	$sAfter = substr($sName,$idxShut+1);	// get the rest of the string after the first bracket pair
+	$sAfter = substr($sName,$idxShut+1);		// get the rest of the string after the first bracket pair
 	if (empty($sAfter)) {
 	    return $this;
 	} else {

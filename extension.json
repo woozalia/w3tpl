@@ -7,7 +7,7 @@
 	"url": "http://htyp.org/W3TPL",
 	"descriptionmsg": "w3tpl-desc",
 	"type": "parserhook",
-	"version": "2.0",
+	"version": "2.1-dev",
 	"MessagesDirs": {
 		"w3tpl": [
 			"i18n"

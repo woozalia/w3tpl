@@ -38,35 +38,39 @@ class xcTag_echo extends xcTag_Var {
 	if ($this->ArgumentExists('strip')) {	// should be something like "reveal", really
 	    throw new \exception('2017-11-09 Where is this even used?');
 	    // QUERY: should this be mutually exclusive with 'vars'? Depends what it's for, I guess.
-	    $sValueOut = $this->DisplayMarkup($sValueIn);
+	    $sContentOut = $this->DisplayMarkup($sValueIn);
 	} else {
 	    if ($this->ArgumentExists('vars')) {
 		$oTplt = new xcStringTemplate_w3tpl($wgOptCP_SubstStart,$wgOptCP_SubstFinish,$sValueIn);
-		$sValueOut = $oTplt->Render();	// *possibly* we will want RenderRecursive(), but let's keep it simple for now...
+		$sContentOut = $oTplt->Render();	// *possibly* we will want RenderRecursive(), but let's keep it simple for now...
 	    } else {
 		// no operations
-		$sValueOut = $sValueIn;
+		$sContentOut = $sValueIn;
 	    }
 	}
 	
 	// POST-PROCESSING (operate on output value)
+	$sOut = NULL;
 	
 	$doRaw = FALSE;
 	$doRawReq = $this->ArgumentExists('raw');
 	if ($doRawReq) {
-	    global $wgW3xAllowRawHTML;
-	
-	    $doRaw = $wgW3xAllowRawHTML;
+	    $doRaw = xcW3TPL::GetAllowRawHTML();
 	}
-
-	if (!$doRaw) {
-	    $sValueOut = 
-	      '<span title="raw output not permitted on this page" style="color:red; font-weight:bold;">(i)</span>'
-	      .$this->GetParser()->recursiveTagParse($sValueOut)
-	      ;
+	if ($doRaw) {
+	    $sOut = $sContentOut;
+	} else {
+	    // not doing raw output
+	    if ($doRawReq) {
+		// raw output was requested - display error indicator
+		$sOut = 
+		  '<span title="raw output not permitted on this page" style="color:red; font-weight:bold;">(i)</span>'
+		  ;
+	    }
+	    $sOut .= $this->GetParser()->recursiveTagParse($sContentOut);
 	}
 	if ($this->ArgumentExists('tag')) {	// surround result with <> to make it into an HTML tag
-	    $sValueOut = "<$sValueOut>";
+	    $sOut = "<$sOut>";
 	}
 	if ($this->ArgumentExists('nocrlf')) {
 	    $sValueOut = strtr($sValueOut,"\n\r",'  ');	// replace newline chars with spaces
@@ -76,7 +80,7 @@ class xcTag_echo extends xcTag_Var {
 	    $sValueOut = htmlspecialchars($sValueOut);	// encode all HTML-significant characters so we can see what is being sent
 	}
 
-	/* 2017-11-09 This was always kinda klugey; I think I want further tests before re-implementing
+	/* 2017-11-09 This was always kinda klugey; I think I want further tests before re-implementing. Might not be needed.
 	$doNow = 'now');
 	if (!$doNow) {
 	    W3AddEcho($out);	// output when appropriate
@@ -86,7 +90,7 @@ class xcTag_echo extends xcTag_Var {
 	// maybe this should go in xcTag
 	$this->SetIsolateOutput($this->ArgumentExists('isolate'));
 
-	return $sValueOut;
+	return $sOut;
     }
     
     // -- EVENTS -- //

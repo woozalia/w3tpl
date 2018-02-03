@@ -11,18 +11,7 @@ $csModuleClass = 'xcModule_FiledLinks';
 
 class xcModule_FiledLinks extends xcModule {
 
-/*
-    private $oDB;
-    protected function DB_read() {
-	if (empty($this->oDB)) {
-	    //$oDB = \fcApp_MW::Me()->GetDatabase();
-	    $oDB = $this->GetDatabase();
-	    $this->oDB = $oDB;
-	}
-	return $this->oDB;
-    }
-*/
-    // TAG-CALLABLE FUNCTIONS
+    // ++ TAG API ++ //
 
     /*----
       INPUT:
@@ -175,15 +164,18 @@ __END__;
 	return $out;
     }
 
+    // -- TAG API -- //
+    // ++ OUTPUT FORMAT ++ //
+
     /*----
-      PURPOSE: Mainly for inheritance, so we can easily modify what w3f_Links_forTopic() displays
+      PURPOSE: Mainly for inheritance, so we can easily modify what TagAPI_Links_forTopic() displays
       OUTPUT: starts a <ul> list
     */
     protected function RenderStart() {
 	return '<ul>';
     }
     /*----
-      PURPOSE: Mainly for inheritance, so we can easily modify what w3f_Links_forTopic() displays
+      PURPOSE: Mainly for inheritance, so we can easily modify what TagAPI_Links_forTopic() displays
       OUTPUT: ends a <ul> list
     */
     protected function RenderStop() {
@@ -243,7 +235,7 @@ __END__;
 	return $out;
     }
 
-    // SUB-FUNCTIONS
+    // -- OUTPUT FORMAT -- //
 
 }
 

@@ -1,8 +1,9 @@
 <?php namespace w3tpl;
 /*
   PURPOSE: SMW listing management functions for w3tpl
+    (2018-01-28) Yeah, but why Google+ Communities?
   REQUIRES: filed-links.php
-  TODO: w3f_SiteGroupListing() is currently hard-wired for Google+
+  TODO: SiteGroupListing() is currently hard-wired for Google+
   HISTORY:
     2011-10-16 w3tpl code started to get too ugly, so pushing out some functionality into callable modules.
     2012-01-24 split off SMW stuff from filed-links.php to smw-links.php
@@ -11,30 +12,21 @@
     2018-01-22 update to work with latest w3tpl
 */
 
-//clsLibrary::Load_byName('ferreteria.db.2');
-//clsLibrary::Load_byName('ferreteria.mw.2');
-
-//new w3tpl_module_SMWLinks();	// class will self-register
 $csModuleClass = 'xcModule_SMWLinks';
 
-class xcModule_SMWLinks extends xcModule_SMW {
+class xcModule_SMWLinks extends xcModule {
 
-    /*----
-      RETURNS: Wzl data object for the MW/SMW database
-      TODO: this should eventually be an override
-    */
-    
-    public function Engine() {
-	$dbr =& wfGetDB( DB_SLAVE );
-	$db = new fcDataConn_SMW($dbr);
-	return $db;
-    }
+    // ++ TAG API ++ //
 
-    // TAG-CALLABLE FUNCTIONS
-
-    public function w3f_SiteGroupListing(array $iArgs) {
-	$dbx = $this->Engine();
-	$ar = $dbx->GetPages_forPropVal('thing type','site-group');
+    public function TagAPI_SiteGroupListing(array $iArgs) {
+	$db = \fcApp::Me()->GetDatabase();
+	
+	/*
+	  GetPages_forPropVal() now replaced by GetTitleObjects_forPropertyValue(),
+	    but return format is different.
+	*/
+	throw new \exception('2018-02-02 This will need some rewriting.');
+	$ar = $db->GetPages_forPropVal('thing type','site-group');
 /*
 	$out = '<pre>';
 	foreach ($ar as $key => $arRow) {
@@ -44,7 +36,7 @@ class xcModule_SMWLinks extends xcModule_SMW {
 */
 
 	$out = '<ul>';
-	$objPage = new fcPageData_SMW($this);
+	$objPage = new \fcPageData_SMW($this);
 	foreach ($ar as $key => $arRow) {
 	    $idSMW = $arRow['s_id'];	// for future coding reference; not currently used
 	    $idNSpace = $arRow['s_namespace'];
@@ -98,6 +90,7 @@ echo 'got to here';
 	filt: additional SMW terms to include in the filter
       THIS IS THE OLD VERSION. Delete it when the new one is working.
     */
+    /* 2018-01-26 This seems to be obsolete.
     public function w3f_SiteUserListing_with_xrefs_OLD(array $iArgs) {
 	$strSite = $iArgs['site'];
 	$strFilt = NzArray($iArgs,'filt');
@@ -117,16 +110,18 @@ echo 'got to here';
 	}
 	return $out;
 
-    }
+    } */
 
-    // SUB-FUNCTIONS
+    // -- TAG API -- //
+    // ++ DATA READ ++ //
 
     /*----
-      INPUT:m
+      INPUT:
 	filt: filter string formatted in {{#ask:}} syntax [[category:whatever]] [[property::value]], etc.
 	cols: list of columns to retrieve in \prefix\demarcated\string format
       RETURNS: SMWResultArray
     */
+    /* 2018-01-26 This seems to be obsolete. If not, it should probably go in Ferreteria's SMW library. Does not reference $this.
     protected function SMW_Query($iFilt,array $arCols) {
 	$strAsk = $iFilt;
 
@@ -152,35 +147,11 @@ echo 'got to here';
 	$res = $smwStore->getQueryResult($smwQry);	// returns SMWQueryResult
 //echo '<pre>'.print_r($res,TRUE).'</pre>';
 	return $res;
-
-/* Leaving this here for now as sample code	
-//	$out .= '<table>';
-	while ( $row = $res->getNext() ) {	// returns array of SMWResultArray or false
-//	    $out .= "\n<tr>";
-	    foreach ( $row as $field ) {	// $field is SMWResultArray (see SMW_QueryResult.php)
-//		$out .= "<td>";
-		$objCol = $field->getPrintRequest();
-		$out .= '<br>'.$objCol->getLabel().' =';
-		//$out .= '<pre>'.print_r($objCol,TRUE).'</pre>';
-
-		// a property can have multiple values for a given page -- usually just one, but there may be more
-		while ( ( $obj = $field->getNextObject() ) !== false ) {
-		    // $obj is SMWWikiPageValue
-		    $htVal = $obj->getLongText(SMW_OUTPUT_HTML);
-		    $out .= ' ['.$htVal.'] ';
-//		    $out .= '<pre>'.print_r($obj,TRUE).'</pre>';
-		}
-
-//		$out .= "</td>";
-	    }
-//	    $out .= '</tr>';
-	}
-//	$out .= '</table>';
-*/
-    }
+    } */
     /*----
       RETURNS: same data as SMW_Query(), but formatted in an array[key]=array{values...}
     */
+    /* 2018-01-26 This seems to be obsolete.
     protected function SMW_Query_asArray($iFilt,array $arCols,$iKeyCol) {
 	$objRes = $this->SMW_Query($iFilt,$arCols);
 
@@ -211,7 +182,7 @@ echo 'got to here';
 	    }
 	}
 	return $arOut;
-    }
+    } */
 
 }
 
@@ -221,6 +192,7 @@ echo 'got to here';
   PURPOSE: extends functionality of smwDataItem
     ...which currently (no longer?) exists
 */
+/* 2018-01-26 This appears to be obsolete.
 class w3smwDataItem {
     protected $smwObj;
 
@@ -230,9 +202,10 @@ class w3smwDataItem {
     public function Object() {
 	return $this->smwObj;
     }
+    
     /*----
       BASED ON: smwDataItem::getNextDataValue()
-    */
+    * /
 
     public function getDataValue() {
 	$obj = $this->Object();
@@ -250,4 +223,4 @@ class w3smwDataItem {
 	}
 	return $dv;
     }
-}
+} */

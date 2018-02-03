@@ -6,24 +6,46 @@
     2011-10-28 adapting filed-links.php to media-links.php
     2012-08-07 started adapting for PsyCrit
     2016-03-17 changed "=& wfGetDB()" to "= wfGetDB()" to remove strict-mode errors
+    2018-01-28
+      fixed lots of stuff to work with current Ferreteria
+      using database wrapper instead of trying to inherit Connection class
 */
-//require_once('filed-links.php');
-//require_once('smw-links.php');
 xcModule::LoadModule('filed-links');	// defines xcModule_FiledLinks
-//xcModule::LoadModule('smw-links');	// defines xcModule_SMWLinks
 
 $csModuleClass = 'xcModule_PsyCrit';
 class xcModule_PsyCrit extends xcModule_FiledLinks {
-    /*----
-      RETURNS: Wzl data object for the MW/SMW database
-      TODO: this should eventually be an override
-    */
-    /* 2018-01-24 redundant; call GetDatabase() instead
-    public function Engine() {
-	$dbr = wfGetDB( DB_SLAVE );	// get MediaWiki database object
-	$db = new PsyCrit_Data($dbr);	// create wrapper database object
-	return $db;
-    } */
+
+    // ++ CLASSES ++ //
+      
+    // OVERRIDE
+    protected function DataHelperClass() {
+	return __NAMESPACE__.'\\xcPsyCrit_DataHelper';
+    }
+
+    // -- CLASSES -- //
+    // ++ FRAMEWORK ++ //
+    
+    // OVERRIDE
+    private $oDBHelp = NULL;
+    // PUBLIC because this is a service provided to the Page class
+    public function GetDataHelper() {
+	if (is_null($this->oDBHelp)) {
+	    $sClass = $this->DataHelperClass();
+	    $this->oDBHelp = new $sClass(\fcApp::Me()->GetDatabase());
+	}
+	return $this->oDBHelp;
+    }
+    
+    // -- FRAMEWORK -- //
+    // ++ TABLES ++ //
+    
+    protected function ResponseQuery() {
+	return $this->GetDatabase()->MakeTableWrapper(__NAMESPACE__.'\\fctqPsyCritResponses');
+    }
+
+    // -- TABLES -- //
+    // ++ SQL: READ ++ //
+
     // FUNCTIONS FOR THIS MODULE
       // inherits w3f_Links_forTopic() without modification
     protected function GetSQL_for_Targets() {
@@ -34,6 +56,10 @@ class xcModule_PsyCrit extends xcModule_FiledLinks {
 	  .' WHERE (cl_to="Specs/target");';
 	return $sql;
     }
+
+    // -- SQL: READ -- //
+    // ++ OUTPUT ++ //
+
     /*----
       INPUT: iRow = object whose fields are taken from the response page data
       TODO: make this static or something
@@ -43,27 +69,28 @@ class xcModule_PsyCrit extends xcModule_FiledLinks {
 
 	$arOut['debug'] = '<pre>'.print_r($iRow,TRUE).'</pre>';
 
-	$smoTitle = new PsyCrit_Page();
+	$smoTitle = new xcPsyCrit_Page($this);
 	$smoTitle->Use_Title_Named($strPTitle);
 
-	$txtDate = $smoTitle->GetPropVal('_dat');
+	$txtDate = $smoTitle->GetPropertyValue('_dat');
 	$dtDate = strtotime($txtDate);
 	$wtDate = date('Y/m/d',$dtDate);
 
-	$strDTitle = DBkeyToDisplay($smoTitle->GetPropVal('Title'));
-	$wtLead =  $smoTitle->GetPropVal('Lead-in');
+	$strDTitle = DBkeyToDisplay($smoTitle->GetPropertyValue('Title'));
+	$wtLead =  $smoTitle->GetPropertyValue('Lead-in');
 
-	$wtCred =  $smoTitle->GetPropVal('Author/ref');
+	$wtCred =  $smoTitle->GetPropertyValue('Author/ref');
 
 	$wtOut = "{{faint|$wtDate}} '''$strDTitle''' ''$wtLead'' [[$strPTitle|$wtCred]]";
 
 	// TODO: media (downloads)
 
 	$arOut['wt'] = $wtOut;
-	$arOut['hdr'] = $smoTitle->GetPropVal('Listing section');
+	$arOut['hdr'] = $smoTitle->GetPropertyValue('Listing section');
 	return $arOut;
     }
     
+    // -- OUTPUT -- //
     // ++ TAG API ++ //
     
     /*----
@@ -77,19 +104,19 @@ class xcModule_PsyCrit extends xcModule_FiledLinks {
 	  .'[[category:specs/target]]';
 	$this->Parse_WikiText($wtOut);	// parse but don't show
 
-	$smoTitle = new PsyCrit_Page();
+	$smoTitle = new xcPsyCrit_Page($this);
 	$smoTitle->Use_GlobalTitle();
 
 	$out = $smoTitle->RenderBit_Keyname();
 
-	$txtDiTitle = DBkeyToDisplay($smoTitle->GetPropVal('title'));
+	$txtDiTitle = DBkeyToDisplay($smoTitle->GetPropertyValue('title'));
 	$htAuthor = $smoTitle->GetPropLinks('Author');
-	$htCiteSrc = clsArray::RenderList($smoTitle->GetPropVal('cite/source'));
+	$htCiteSrc = $smoTitle->RenderPropertyValues('cite/source');
 	$htYear = $smoTitle->GetPropLinks('year');
-	$wtAbstract = $smoTitle->GetPropVal('abstract');
+	$wtAbstract = $smoTitle->GetPropertyValue('abstract');
 
 	$strKey = $smoTitle->Keyname();
-	$htResps = $this->Engine()->RenderResponsesFor($strKey);
+	$htResps = $this->GetDataHelper()->RenderResponsesFor($strKey);
 
 
 	$out .= "'''$txtDiTitle''': "
@@ -110,7 +137,7 @@ class xcModule_PsyCrit extends xcModule_FiledLinks {
       ASSUMES: current page is a Response article
     */
     public function TagAPI_Show_Response_Header() {
-	$smoATitle = new PsyCrit_Page();
+	$smoATitle = new xcPsyCrit_Page($this);
 	$smoATitle->Use_GlobalTitle();
 
 	$ar = $smoATitle->Render_ResponseHeader();
@@ -189,7 +216,7 @@ class xcModule_PsyCrit extends xcModule_FiledLinks {
     /*----
       ACTION: Lists all responses in summary form (multiline)
     */
-    public function TagAPI_List_Responses_summary(array $iArgs) {
+    public function TagAPI_List_Responses_summary(array $arArgs) {
 	$rs = $this->GetAllResponses();
 
 	// process the data
@@ -198,32 +225,23 @@ class xcModule_PsyCrit extends xcModule_FiledLinks {
 	    $idLast = 0;
 	    while ($rs->NextRow()) {
 		$arOut[] = $rs->RenderSummary();
-	
-	/* 2018-01-25 old
-	$dbr = wfGetDB( DB_SLAVE );
-	if ($dbr->numRows($res)) {
-	    $idLast = 0;
-	    while ( $row = $dbr->fetchObject($res) ) {
-		$arOut[] = $this->RenderSummary_forResponse($row);
 	    }
-
-	    $cntRows = count($arOut);
-	    $intCols = clsArray::Nz($iArgs,'cols');
-	    if ($intCols) {
-		$cntSplit = (int)$cntRows/$intCols;
+	    $nRows = count($arOut);
+	    $nCols = \fcArray::Nz($arArgs,'cols');
+	    if ($nCols) {
+		$nSplit = (int)$nRows/$nCols;
 		$didSplit = FALSE;
 	    } else {
-		$cntSplit = 0;
+		$nSplit = 0;
 		$didSplit = TRUE;
 	    }
 
-	    //$out = '__NOEDITSECTION__';	// don't show edit links - is this actually needed now?
 	    $txtHdrOld = NULL;
 	    $idxRow = 0;
 	    $out = '';
 	    foreach ($arOut as $arRow) {
 		$idxRow++;
-		if (($idxRow > $cntSplit) && !$didSplit) {
+		if (($idxRow > $nSplit) && !$didSplit) {
 		    $out .= "\n| valign=top width=50% |";
 		    $didSplit = TRUE;
 		}
@@ -235,17 +253,16 @@ class xcModule_PsyCrit extends xcModule_FiledLinks {
 		}
 
 		$out .= '<p>'.$arRow['wt'].'</p>';
-		//$out .= $arRow['debug'];
 	    }
 	} else {
 	    $out = 'No responses found!';
 	}
-	$wtPfx = clsArray::Nz($iArgs,'pfx');
-	$wtSfx = clsArray::Nz($iArgs,'sfx');
+	    
+	$wtPfx = \fcArray::Nz($arArgs,'pfx');
+	$wtSfx = \fcArray::Nz($arArgs,'sfx');
 	$wtOut = $this->Parse_WikiText($wtPfx.$out.$wtSfx);	// parse it all together
-	*/
+
 	return $wtOut;
-	//return $out;
     }
 
     // -- TAG API -- //
@@ -269,50 +286,7 @@ class xcModule_PsyCrit extends xcModule_FiledLinks {
 	*/
 	return $rs;
     }
-    // development version for trying to figure out SMW data schema
-    public function w3f_List_Responses_dev() {
-/*
-	global $smwgQFeatures, $smwgQDefaultNamespaces;
 
-	$qp = new SMWQueryParser( $smwgQFeatures );
-	$qp->setDefaultNamespaces( $smwgQDefaultNamespaces );
-*/
-
-/*
-	$soQuery = SMWQueryProcessor::createQuery('[[specs type::target]]'
-		array $  	params,
-		$  	context = self::INLINE_QUERY,
-		$  	format = '',
-		array $  	extraprintouts = array()
-	)
-*/
-//	$dbr =& wfGetDB( DB_SLAVE );
-//	$db = new csSMWData($dbr);
-	$db = $this->GetDatabase();
-
-	$rs = $db->GetPages_forPropVal('Specs_type','Target');
-
-	if ($rs->HasRows()) {
-	    $out = 'Rows found...';
-	    while ($rs->NextRow()) {
-		$out .= '<pre>'.print_r($rs->Values(),TRUE).'</pre>';
-	    }
-	} else {
-	    $out = 'No data';
-	}
-
-	return $out;
-    }
-
-    // INTERNAL FUNCTIONS
-/*
-    protected function RenderStart() {
-	return '';
-    }
-    protected function RenderStop() {
-	return '';
-    }
-*/
     protected function RenderLine($iTitle,array $arProps=NULL) {
 	throw new exception('What calls this?');
 
@@ -359,24 +333,44 @@ class xcModule_PsyCrit extends xcModule_FiledLinks {
     }
 }
 
-class PsyCrit_Data extends \fcDataConn_SMW {
+class xcPsyCrit_DataHelper extends \fcDataConn_SMW {
+
+    // ++ SETUP ++ //
+
+    public function __construct(\fcDataConn_SMW $oConn) {
+	$this->SetDatabase($oConn);
+    }
+    private $oConn;
+    protected function SetDatabase(\fcDataConn_SMW $oConn) {
+	$this->oConn = $oConn;
+    }
+    protected function GetDatabase() {
+	return $this->oConn;
+    }
+
+    // -- SETUP -- //
+    // ++ DATA READ ++ //
+
     /*----
       RETURNS: short list of responses to the given keyname
 	or NULL if none found.
     */
     public function RenderResponsesFor($iKeyname) {
-	$arResps = $this->GetPages_forPropVal('Responds_to',$iKeyname);
+	$arResps = $this->GetDatabase()->GetTitleObjects_forPropertyValue('Responds_to',$iKeyname);
 	$htResps = NULL;
 	if (is_array($arResps)) {
-	    foreach ($arResps AS $id_smw => $objMTitle) {
-		$txtMTitle = $objMTitle->TitleShown();
-		$txtMFTitle = $objMTitle->TitleFull();
+	    $ofTitle = new \fcPageData_SMW();
+	    foreach ($arResps AS $id_smw => $ofTitle) {
+		//$omwTitle = \Title::makeTitle($arTitle['s_namespace'],$arTitle['s_title']);
+		//$ofTitle->SetTitleObject($omwTitle);
+		$txtMTitle = $ofTitle->TitleShown();
+		$txtMFTitle = $ofTitle->TitleFull();
 
-		$strCite = $objMTitle->GetPropVal('Cite/author');
+		$strCite = $ofTitle->GetPropertyValue('Cite/author');
 		if ($strCite == '') {
-		    $strCoOf = $objMTitle->GetPropVal('Content_of');
+		    $strCoOf = $ofTitle->GetPropertyValue('Content_of');
 		    if ($strCoOf != '') {
-			$strFmt = $objMTitle->GetPropVal('Format');
+			$strFmt = $ofTitle->GetPropertyValue('Format');
 			$htLink =
 			  '[[media:'.$txtMTitle.'|'.$strFmt.']]'
 			  .'<sup>[[:'.$txtMFTitle.'|i]]</sup>';
@@ -393,14 +387,16 @@ class PsyCrit_Data extends \fcDataConn_SMW {
 	}
 	return $htResps;
     }
+
+    // ++ DATA READ ++ //
 }
 
-class PsyCrit_Page extends \fcPageData_SMW {
-    protected $strKey;
+class xcPsyCrit_Page extends \fcPageData_SMW {
 
-    public function Keyname() {
-	if (empty($this->strKey)) {
-	    $this->strKey = $this->GetPropVal('Keyname');
+    private $strKey = NULL;
+    public function Keyname() {	// TODO: split into Set/Get
+	if (is_null($this->strKey)) {
+	    $this->strKey = $this->GetPropertyValue('Keyname');
 	}
 	return $this->strKey;
     }
@@ -410,14 +406,14 @@ class PsyCrit_Page extends \fcPageData_SMW {
 	return $out;
     }
     public function Render_ResponseHeader() {
-	$txtPTFull = $this->GetPropVal('title');
-	$txtPTShort = $this->GetPropVal('Title/short');
+	$txtPTFull = $this->GetPropertyValue('title');
+	$txtPTShort = $this->GetPropertyValue('Title/short');
 	if ($txtPTShort == '') {
 	    $txtPTHdr = $txtPTFull;
 	} else {
 	    $txtPTHdr = $txtPTShort;
 	}
-	$htTarget = $this->GetPropVal('target');	// TODO: handle multiple targets, link to target
+	$htTarget = $this->GetPropertyValue('target');	// TODO: handle multiple targets, link to target
 
 	$wtHide =
 	  '[[page type::specs]]'
@@ -432,7 +428,7 @@ class PsyCrit_Page extends \fcPageData_SMW {
 	}
 
 	$htDate = $this->GetPropLinks('Date');
-	$txtLead = $this->GetPropVal('lead-in');
+	$txtLead = $this->GetPropertyValue('lead-in');
 	$htRespTo = $this->Render_Targets_forThis_ref();
 	$htMedia = '';	// to be written
 
@@ -451,15 +447,17 @@ class PsyCrit_Page extends \fcPageData_SMW {
 	$wtShow .= $this->RenderBit_Keyname();
 	$strKey = $this->Keyname();
 
-	$arMedia = $this->Engine()->GetPages_forPropVal('Content_of',$strKey);
+	$db = $this->GetDatabase();
+
+	$arMedia = $db->GetTitleObjects_forPropertyValue('Content_of',$strKey);
 	$htMedia = NULL;
 	if (is_array($arMedia)) {
 	    foreach ($arMedia AS $objMTitle) {
-		if ($objMTitle->MW_Object()->getNamespace() == NS_FILE) {
+		if ($objMTitle->GetTitleObject()->getNamespace() == NS_FILE) {
 		    $txtMTitle = $objMTitle->TitleShown();
 		    $txtMFTitle = $objMTitle->TitleFull();
 
-		    $strFmt = $objMTitle->GetPropVal('Format');
+		    $strFmt = $objMTitle->GetPropertyValue('Format');
 		    $htLink =
 		      '[[media:'.$txtMTitle.'|'.$strFmt.']]'
 		      .'<sup>[[:'.$txtMFTitle.'|i]]</sup>';
@@ -472,7 +470,7 @@ class PsyCrit_Page extends \fcPageData_SMW {
 	}
 	$hasMedia = !is_null($htMedia);
 
-	$htResps = $this->Engine()->RenderResponsesFor($strKey);
+	$htResps = $this->GetDataHelper()->RenderResponsesFor($strKey);
 	$hasResps = !is_null($htResps);
 
 	$hasTarg = !is_null($htRespTo);
@@ -514,36 +512,44 @@ class PsyCrit_Page extends \fcPageData_SMW {
     }
     /*----
       ACTION: list all articles Targeted by this page
+	In other words, find all pages to which this is a response.
+	Normally, that will be just one page.
+	More specifically, get the value(s) for the "responds to" property,
+	  then find each page where Keyname is set to that value,
+	  then render each title nicely in a list.
     */
     public function Render_Targets_forThis_ref() {
+	$db = $this->GetDatabase();
 
 	// 1. Get targets list
-	$arTarg = $this->GetPropVals('Responds_to');
+	$arTarg = $this->GetPropertyValues('Responds_to');
 
 	// 2. For each target (keyname), generate link to the corresponding page
-	$objTTitle = new PsyCrit_Page($this->Engine());
+	//$objTTitle = new PsyCrit_Page($db);
 	if (count($arTarg) > 0) {
 	    $out = '';
-	    foreach ($arTarg AS $id => $keyname) {
-		$sqlKeyname = $this->Engine()->SafeParam($keyname);
-		$ar = $this->Engine()->GetPages_forPropVal('Keyname',$sqlKeyname);
+	    foreach ($arTarg AS $n => $sKey) {
+		//$sqlKeyname = $db->SanitizeString($sKey);	// don't quote
+		$ar = $db->GetTitleObjects_forPropertyValue('Keyname',$sKey);
 		if (count($ar) > 0) {
 		    if (count($ar) == 1) {
 			// get object for Target page
-			$objTPage = array_shift($ar);	// load first-and-only title
-			$strTitle = $objTPage->TitleKey();
-			$strRef = $objTPage->GetPropVal('Cite/author');
-			if ($strRef == '') {
-			    $wtTLink = '[['.$strTitle.'|needs cite/author]]';
+			$oTPage = array_shift($ar);	// load first-and-only title
+			$sTitle = $oTPage->TitleKey();
+			$sRef = $oTPage->GetPropertyValue('Cite/author');
+			if ($sRef == '') {
+			    $wtTLink = '[['.$sTitle.'|needs cite/author]]';
 			} else {
-			    $wtTLink = '[['.$strTitle.'|'.$strRef.']]';
+			    $wtTLink = '[['.$sTitle.'|'.$sRef.']]';
 			}
 			$outRow = $wtTLink;
 		    } else {
-			$outRow = $keyname.' is used <font color=red>'.count($ar).'</font> times!';
+			// each article should have a unique keyname
+			$outRow = $sKey.' is used in <font color=red>'.count($ar).'</font> pages!';
 		    }
 		} else {
-		    $outRow = '<font color=red>?</font>'.$keyname;
+		    $sWhere = __FILE__.' line '.__LINE__;
+		    $outRow = "<font color=red title='this should not happen - $sWhere'>?[</font>".$sKey.'<font color=red>]</font>';
 		}
 		$out .= ' '.$outRow;
 	    }
@@ -554,8 +560,17 @@ class PsyCrit_Page extends \fcPageData_SMW {
     }
 }
 
-class fctqPsyCritResponses extends fcTable_wSource_wRecords {
+class fctqPsyCritResponses extends \fcTable_wSource_wRecords {
+    use \ftReadableTable, \ftSelectable_Table;
 
+    // ++ SETUP ++ //
+
+    // CEMENT
+    protected function SingularName() {
+	return __NAMESPACE__.'\\fcrqPsyCritResponse';
+    }
+
+    // ++ SETUP ++ //
     // ++ SQL: DATA READ ++ //
 
     // OVERRIDE
@@ -568,31 +583,36 @@ class fctqPsyCritResponses extends fcTable_wSource_wRecords {
     }
     
     // -- SQL: DATA READ -- //
+
+}
+class fcrqPsyCritResponse extends \fcDataRecord {
+
     // ++ OUTPUT ++ //
 
-    private function RenderSummary($iRow) {
-	$strPTitle = $iRow->page_title;
+    public function RenderSummary() {
+	$arRow = $this->GetFieldValues();
+	$strPTitle = $this->GetFieldValue('page_title');
 
-	$arOut['debug'] = '<pre>'.print_r($iRow,TRUE).'</pre>';
+	$arOut['debug'] = '<pre>'.print_r($arRow,TRUE).'</pre>';
 
-	$smoTitle = new PsyCrit_Page();
+	$smoTitle = new xcPsyCrit_Page();
 	$smoTitle->Use_Title_Named($strPTitle);
 
-	$txtDate = $smoTitle->GetPropVal('_dat');
+	$txtDate = $smoTitle->GetPropertyValue('_dat');
 	$dtDate = strtotime($txtDate);
 	$wtDate = date('Y/m/d',$dtDate);
 
-	$strDTitle = DBkeyToDisplay($smoTitle->GetPropVal('Title'));
-	$wtLead =  $smoTitle->GetPropVal('Lead-in');
+	$strDTitle = DBkeyToDisplay($smoTitle->GetPropertyValue('Title'));
+	$wtLead =  $smoTitle->GetPropertyValue('Lead-in');
 
-	$wtCred =  $smoTitle->GetPropVal('Author/ref');
+	$wtCred =  $smoTitle->GetPropertyValue('Author/ref');
 
 	$wtOut = "{{faint|$wtDate}} '''$strDTitle''' ''$wtLead'' [[$strPTitle|$wtCred]]";
 
 	// TODO: media (downloads)
 
 	$arOut['wt'] = $wtOut;
-	$arOut['hdr'] = $smoTitle->GetPropVal('Listing section');
+	$arOut['hdr'] = $smoTitle->GetPropertyValue('Listing section');
 	return $arOut;
     }
 
