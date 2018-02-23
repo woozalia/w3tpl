@@ -39,6 +39,9 @@ class xcModule_PsyCrit extends xcModule_FiledLinks {
     // -- FRAMEWORK -- //
     // ++ TABLES ++ //
     
+    protected function TargetQuery() {
+	return $this->GetDatabase()->MakeTableWrapper(__NAMESPACE__.'\\fctqPsyCritTargets');
+    }
     protected function ResponseQuery() {
 	return $this->GetDatabase()->MakeTableWrapper(__NAMESPACE__.'\\fctqPsyCritResponses');
     }
@@ -46,8 +49,7 @@ class xcModule_PsyCrit extends xcModule_FiledLinks {
     // -- TABLES -- //
     // ++ SQL: READ ++ //
 
-    // FUNCTIONS FOR THIS MODULE
-      // inherits w3f_Links_forTopic() without modification
+    /* 2018-02-04 obsolete
     protected function GetSQL_for_Targets() {
 	$sql = 'SELECT * FROM'
 	  .' categorylinks AS cl'
@@ -55,6 +57,12 @@ class xcModule_PsyCrit extends xcModule_FiledLinks {
 	  .' ON cl_from=page_id'
 	  .' WHERE (cl_to="Specs/target");';
 	return $sql;
+    }
+    */
+    protected function SelectPageRecords_forTargets() {
+	$t = $this->TargetQuery();
+	$rs = $t->SelectRecords('cl_to="Specs/target"');
+	return $rs;
     }
 
     // -- SQL: READ -- //
@@ -92,6 +100,14 @@ class xcModule_PsyCrit extends xcModule_FiledLinks {
     
     // -- OUTPUT -- //
     // ++ TAG API ++ //
+    
+    /* FUNCTIONS:
+      Show_Target_Page
+      Show_Response_Header
+      List_Responses_toThis_summary - not yet written
+      List_Targets_forThis_ref
+      List_Targets_summary
+      List_Responses_summary
     
     /*----
       TODO: Move most of this code into the PsyCrit_Page class
@@ -167,6 +183,17 @@ class xcModule_PsyCrit extends xcModule_FiledLinks {
       ACTION: list ALL Target articles, with a formatted description of each.
     */
     public function TagAPI_List_Targets_summary() {
+	//$t = $this->TargetQuery();
+	//$rs = $t->SelectRecords('cl_to="Specs/target"');
+	$rs = $this->SelectPageRecords_forTargets();
+	if ($rs->HasRows()) {
+	    $out = $rs->RenderList_summary();
+	} else {
+	    $out = 'No targets found!';
+	}
+	return $out;
+
+	/* 2018-02-04 old code that no longer worked anyway
 	$sql = $this->GetSQL_for_Targets();
 
 	// get a database connection object
@@ -212,12 +239,18 @@ class xcModule_PsyCrit extends xcModule_FiledLinks {
 	    $out = 'No targets found!';
 	}
 	return $out;
+	*/
+    }
+    public function TagAPI_List_Targets_dropdown(array $arArgs) {
+	$rs = $this->SelectPageRecords_forTargets();
+	$out = $rs->RenderList_dropdown($arArgs);
+	return $out;
     }
     /*----
       ACTION: Lists all responses in summary form (multiline)
     */
     public function TagAPI_List_Responses_summary(array $arArgs) {
-	$rs = $this->GetAllResponses();
+	$rs = $this->SelectAllResponses();
 
 	// process the data
 
@@ -266,27 +299,18 @@ class xcModule_PsyCrit extends xcModule_FiledLinks {
     }
 
     // -- TAG API -- //
+    // ++ DATA READ ++ //
 
-    // DEPRECATED
-    protected function GetAllResponses() {
+    protected function SelectAllResponses() {
 	$t = $this->ResponseQuery();
 	$rs = $t->SelectRecords('cl_to="Specs/response"');
-	/*
-	$sql = 'SELECT * FROM'
-	  .' categorylinks AS cl'
-	  .' LEFT JOIN page AS p'
-	  .' ON cl_from=page_id'
-	  .' WHERE (cl_to="Specs/response");';
-	// get a database connection object
-	$dbr = static::GetDatabase_MW();
-	// execute SQL and get data
-	$res = $dbr->query($sql);
-
-	return $res;
-	*/
 	return $rs;
     }
+    
+    // -- DATA READ -- //
+    // ++ WEB OUTPUT ++ //
 
+    /* 2018-02-04 apparently nothing uses this
     protected function RenderLine($iTitle,array $arProps=NULL) {
 	throw new exception('What calls this?');
 
@@ -294,43 +318,10 @@ class xcModule_PsyCrit extends xcModule_FiledLinks {
 
 	$out = '{{faint|'.respDate.'}} <b>'.respTitle.'</b> <i>'.respSnip.'</i> [['.resp_pg_title.'|'.respRef.']]';
 
-/*
-  <let name=respKey copy=target />
-  <let name=respKey append>/</let>
-  <let name=respKey append copy=respDate />
-  <let name=respKey append>_</let>
-  <let name=respKey append copy=respRef />
 
-  <call listMedia iRespKey=$respKey />
+    } */
 
-  <let name=arrKey copy=respDate />
-  <let name=arrKey append copy=idx /> <!-- so we don't get two identical keys -->
-  <let name=hdrArr index=$arrKey copy=respHdln />
-  <let name=outArr index=$arrKey copy=out />
-  <let name=outArr index=$arrKey append> </let>
-  <let name=outArr index=$arrKey append copy=respMedia />
-
-	if (is_object($objTitle)) {
-	    $strTitle = $objTitle->getText();
-	    $urlMain = $objTitle->getLinkUrl();
-	    //$objTalk = $objTitle->getTalkPage();
-	    //$urlTalk = $objTalk->getLinkUrl();
-	    if (array_key_exists('download-links',$arProps)) {
-		$htLine = '<a title="lyrics and other data" href="'.$urlMain.'">'.$strTitle.'</a>';
-		$htLine .= '</td><td>';
-		$strLinks = $this->Parse_WikiText($arProps['download-links']);
-		$htLine .= $strLinks;
-	    } else {
-		$htLine = '<a title="summary and index data (this needs to be updated)" href="'.$urlMain.'">'.$strTitle.'</a>';
-	    }
-	} else {
-	    $htLine = 'No page for ID='.$idTitle;
-	}
-	$out .= $htLine;
-	$out .= '</td></tr>';
-	return $out;
-*/
-    }
+    // -- WEB OUTPUT -- //
 }
 
 class xcPsyCrit_DataHelper extends \fcDataConn_SMW {
@@ -470,7 +461,7 @@ class xcPsyCrit_Page extends \fcPageData_SMW {
 	}
 	$hasMedia = !is_null($htMedia);
 
-	$htResps = $this->GetDataHelper()->RenderResponsesFor($strKey);
+	$htResps = xcApp::Me()->GetDataHelper()->RenderResponsesFor($strKey);
 	$hasResps = !is_null($htResps);
 
 	$hasTarg = !is_null($htRespTo);
@@ -559,10 +550,121 @@ class xcPsyCrit_Page extends \fcPageData_SMW {
 	return $out;
     }
 }
-
-class fctqPsyCritResponses extends \fcTable_wSource_wRecords {
+abstract class fctqPsyCritArticles extends \fcTable_wSource_wRecords {
     use \ftReadableTable, \ftSelectable_Table;
+    
+    // ++ DATA SQL ++ //
+    
+    // OVERRIDE
+    protected function SourceString_forSelect() {
+	return 
+	    'categorylinks AS cl'
+	  .' LEFT JOIN page AS p'
+	  .' ON cl_from=page_id'
+	  ;
+    }
+    
+    // -- DATA SQL -- //
 
+}
+class fctqPsyCritTargets extends fctqPsyCritArticles {
+
+    // ++ SETUP ++ //
+
+    // CEMENT
+    protected function SingularName() {
+	return __NAMESPACE__.'\\fcrqPsyCritTarget';
+    }
+    // -- SETUP -- //
+    // ++ SQL: DATA READ ++ //
+
+}
+class fcrqPsyCritTarget extends \fcDataRecord {
+
+    // ++ FRAMEWORK ++ //
+    
+    protected function Parse_WikiText($sText) {
+	return xcApp::Me()->GetModule()->Parse_WikiText($sText);
+    }
+
+    // -- FRAMEWORK -- //
+    // ++ FIELD VALUES ++ //
+
+    protected function GetTitleID() {
+	return $this->GetFieldValue('page_id');
+    }
+    /*----
+      TODO: rename this to make it clear it's for wikilinks, and include the namespace
+    */
+    protected function GetTitleString() {
+	return $this->GetFieldValue('page_title');
+    }
+    
+    // -- FIELD VALUES -- //
+    // ++ WEB OUTPUT ++ //
+    
+    public function RenderList_summary() {
+    
+	$out = "<ul>\n";
+
+	while ($this->NextRow()) {
+	    $sPgTitle = $this->GetTitleString();
+
+	    $arArgs = array($sPgTitle,'?title','link=none');
+	    list( $oQuery, $oParams ) = \SMWQueryProcessor::getQueryAndParamsFromFunctionParams(
+	      $arArgs,
+	      SMW_OUTPUT_FILE,
+	      \SMWQueryProcessor::INLINE_QUERY,
+	      TRUE);	// treat as if #show (rather than #ask)
+	    $sDiTitle = \SMWQueryProcessor::getResultFromQuery(
+	      $oQuery,
+	      $oParams,
+	      SMW_OUTPUT_WIKI,
+	      \SMWQueryProcessor::INLINE_QUERY
+	      );
+
+	    if (empty($sDiTitle)) {
+		$wtDiTitle = "[[$sPgTitle]]";
+	    } else {
+		$wtDiTitle = "[[$sPgTitle|$sDiTitle]]";
+	    }
+	    $out .= '<li>'
+	      .$this->Parse_WikiText("<b>{{#show:$sPgTitle|?author}}</b>").' '
+	      .$this->Parse_WikiText("({{#show:$sPgTitle|?year}})").' '
+	      .$this->Parse_WikiText($wtDiTitle);
+	}
+	
+	$out .= "</ul>\n";
+	return $out;
+    }
+    public function RenderList_dropdown(array $arArgs) {
+	if ($this->HasRows()) {
+	    $sName = \fcArray::Nz($arArgs,'attribute.name','target');		// 'name' attribute - default to "target"
+	    $sDefText = \fcArray::Nz($arArgs,'default.text','Select a target...');	// default choice: text
+	    $sDefValue = \fcArray::Nz($arArgs,'default.value');			// default choice: value (defaults to NULL)
+	
+	    $out = "<select name='$sName'>\n";
+	    if (!is_null($sDefText)) {
+		$out .= "<option value='$sDefValue'>$sDefText</option>\n";
+	    }
+	    
+	    while ($this->NextRow()) {
+		$id = $this->GetTitleID();
+		$sTitle = $this->GetTitleString();
+		$htSel = ($id == $sDefValue)?' selected':'';
+		$out .= "<option value=$id$htSel>$sTitle</option>\n";
+	    }
+	    $out .= "</select>\n";
+	} else {
+	    $out = \fcArray::Nz($arArgs,'none','<i>No targets found.</i>');
+	}
+	return $out;
+    }
+  
+    // -- WEB OUTPUT -- //
+}
+class fctqPsyCritResponses extends fctqPsyCritArticles {
+ 
     // ++ SETUP ++ //
 
     // CEMENT
@@ -570,20 +672,20 @@ class fctqPsyCritResponses extends \fcTable_wSource_wRecords {
 	return __NAMESPACE__.'\\fcrqPsyCritResponse';
     }
 
-    // ++ SETUP ++ //
+    // -- SETUP -- //
     // ++ SQL: DATA READ ++ //
 
     // OVERRIDE
+    /* 2018-02-04 now redundant
     protected function SourceString_forSelect() {
 	return 	  
 	  ' categorylinks AS cl'
 	  .' LEFT JOIN page AS p'
 	  .' ON cl_from=page_id'
 	  ;
-    }
+    } */
     
     // -- SQL: DATA READ -- //
-
 }
 class fcrqPsyCritResponse extends \fcDataRecord {
 

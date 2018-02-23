@@ -28,7 +28,9 @@ class xcTag_let extends xcTag_Var {
     /*----
       HISTORY:
 	2017-11-01 rewrite
-	  Removing support for "load" attribute until we have a usage case
+	  Removing support for "load" attribute until we have a usage case.
+	  It doesn't make sense to load a value you'd have to save anyway.
+	    (Different page, perhaps? But when would we need that? Need usage case.)
     */
     public function Go() {
 	$sVarName = $this->RequireArgument('name');
@@ -43,7 +45,7 @@ class xcTag_let extends xcTag_Var {
 	    $doOParse = $this->ArgumentExists('oparse');
 	    $sPage = $this->ArgumentValueNz('page');
 	    $doPage = !is_null($sPage);
-	    $doSave = FALSE;	// 2017-11-01 unsupported until we have a usage case
+	    $doSave = $this->ArgumentExists('save');
 	    
 	    $oVar = xcVar::GetVariable_FromExpression($sVarName,TRUE);
 	    
@@ -58,6 +60,7 @@ class xcTag_let extends xcTag_Var {
 		// if "null" option, then no other inputs matter
 		$oVar->ClearLocal();
 
+/* 2018-02-10 can't think of usage case for this
 	    } elseif ($doLoad) {
 
 		// This could be either array or scalar, so we have to handle it here.
@@ -88,50 +91,24 @@ class xcTag_let extends xcTag_Var {
 		    $sVal = $Props->LoadVal($strName);
 		    $oVar->Load($sVal);
 		}
+		*/
 	    } else {
 		if (!is_object($oVar)) {
-		    $this->AddError('w3tpl2 internal error');
+		    $this->AddError('w3tpl internal error');
 		    return '';
 		}
-		// preload variable with whatever it needs, then use standard option processing
-		//$oVar->Fetch();	// 2017-10-31 actually, I don't understand why this is being called here
 		
-		/* 2017-11-06 Tentatively, it doesn't make sense to do any of this here.
-		// "copy" option works for any data type:
-		if ($this->CheckCopy()) {
-		    // do nothing; work already done
-		} else {
-		    // NOTE: possibly CheckCopy() should accept the object for the local var and modify that instead of the input
-		
-		    $sContent = $this->GetInput();
-		    if (is_null($sContent) or $this->ArgExists('self')) {
-		    
-		    } else {
-			// starting with tag-pair's contents
-			$oVar->SetValue($sContent);	// okay, this is problematic because it makes the original value unavailable
-		    }
-		}*/
 
 		$this->MainProcess();
 		
-		/* 2017-11-01 replacing this
-		$mwoParser = $this->GetParser();
-		if ($oVar->IsArray()) {
-		    $this->DoFromArray( $oVar, $objArgs, $input, $mwoParser );
-		} else {
-		    $this->DoFromScalar( $objVar, $objArgs, $input, $mwoParser );
-
-// 2011-09-20 this code seems to overwrite an array value -- so moving it here
-		    if ($this->ArgExists('parse')) {	// 2011-07-22 not tested yet
-			$oVar->SetValue($mwoParser->recursiveTagParse($oVar->GetValue()));
-		    }
-		    $oVar->Store();
-		} */
 	    }
-    // (option) store the results:
+    // (option) store the results in Page Properties:
 	    if ($doSave) {
-		$oProps = new fcMWPageProperties($mwoParser,$wgTitle);
-		$oVar->Save($oProps);
+		global $wgTitle;	// 2018-02-10 surely there is somewhere better to get this?
+	    
+		$oProps = new \fcMWProperties_page($this->GetParser(),$wgTitle);
+		//$oVar->Save($oProps);
+		$oProps->SaveValue($oVar->GetName(),$oVar->GetValue());
 	    }
 
     // (option) print the results:

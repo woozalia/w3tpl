@@ -491,7 +491,8 @@ class xcVar {
 	return;	// 2016-11-07 writing still in progress; fail gracefully
 	$this->SetIndex($sIndex);
     }
-    protected function GetName() {
+    // PUBLIC so caller can store it externally
+    public function GetName() {
 	return $this->sName;
     }
     /*----
@@ -501,15 +502,6 @@ class xcVar {
 	2017-12-14 I think for now I decided that vars would be flat, not a tree; removing "parent" references
     */
     public function GetStorageName() {
-    /*
-	if ($this->HasParent()) {
-	    $out = $this->ParentObject()->GetName();
-	} else {
-	    $out = NULL;
-	}
-	$out .= '/'.$this->GetName();
-    */
-	//$out = '/'.$this->GetName();	// 2017-12-14 apparently the LOAD code doesn't expect a slash?
 	$out = $this->GetName();
 	return $out;
     }
@@ -560,7 +552,7 @@ class xcVar {
     public function SaveValue_toCurrentPage(\Parser $mwoParser) {
 	global $wgTitle;
 	
-	$oProps = new \fcMWPageProperties($mwoParser,$wgTitle);
+	$oProps = new \fcMWProperties_page($mwoParser,$wgTitle);
 	$oProps->SaveValue($this->GetStorageName(),$this->GetValue());
     }
     
@@ -684,7 +676,7 @@ class xcVar {
       HISTORY:
 	2011-09-19 written to encapsulate existing functionality in <let>
     */
-    public function Save(fcMWPageProperties $iProps) {
+    public function Save(fcMWProperties_page $iProps) {
 	throw new \exception('2017-10-30 This needs updating.');
 	if ($this->IsArray()) {
 	    $iProps->SaveArray($this->Value,$this->FullName());
@@ -695,7 +687,7 @@ class xcVar {
     /*----
       ACTION: Loads the variable from page properties
     */
-    public function Load(fcMWPageProperties $iProps) {
+    public function Load(fcMWProperties_page $iProps) {
 	throw new \exception('2017-10-30 This needs updating.');
 	$this->Value = $iProps->LoadVal($this->Name);
 	$this->Store();
@@ -703,7 +695,7 @@ class xcVar {
     /*----
       ACTION: Loads the variable from page properties as an array
     */
-    public function LoadArray(fcMWPageProperties $iProps) {
+    public function LoadArray(fcMWProperties_page $iProps) {
 	throw new \exception('2017-10-30 This needs updating.');
 	W3AddTrace(' -- LoadArray ENTER');
 	$arVal = $iProps->LoadValues($this->Name);
@@ -725,7 +717,7 @@ class xcVar {
     /*----
       ACTION: Loads all of the page's properties as an array
     */
-    public function LoadAll(fcMWPageProperties $iProps) {
+    public function LoadAll(fcMWProperties_page $iProps) {
 	throw new \exception('2017-10-30 This needs updating.');
 	W3AddTrace(' -- LoadAll ENTER');
 	$arVal = $iProps->LoadVal();	// load all page properties

@@ -4,6 +4,7 @@
   HISTORY:
     2015-09-10 started
     2015-09-20 census is having problems, so merging status class into point class in hopes that it can be straightened out
+    2018-02-10 This will need some updating in order to work again.
 */
 
 //clsLibrary::Load_byName('ferreteria.db.2');

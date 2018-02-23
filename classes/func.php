@@ -136,8 +136,9 @@ class xcFunc {
 	    $fkey = '>fx()>'.$funcName;
     */
     public function Store() {
-	$oProps = new \fcMWSiteProperties($this->GetParser());
-	$oProps->SaveArray($this->GetDefinition());
+	$oProps = new \fcMWProperties_page($this->GetParser());
+	$sName = $this->GetName();
+	$oProps->SaveValue($sName,$this->GetDefinition());
     }
     /*----
       ACTION: Load the current function's definition from the database
@@ -146,9 +147,12 @@ class xcFunc {
     public function Fetch() {
 	$sName = $this->GetName();
 	// WORKING HERE
-	$key = ">fx()>$sName";
-	$oProps = new \fcMWSiteProperties($this->GetParser());
-	$ar = $oProps->LoadValues($key);
+	//$key = ">fx()>$sName";
+	//$sKey = $sName;
+	//echo "KEY=[$sKey]";
+	$oProps = new \fcMWProperties_site($this->GetParser());
+	//$ar = $oProps->LoadValue($sKey);
+	$ar = $oProps->LoadOldFormatFunction($sName);
 	
 	$this->PutDefinition($ar);
     }

@@ -69,15 +69,17 @@ class xcTag_echo extends xcTag_Var {
 	    }
 	    $sOut .= $this->GetParser()->recursiveTagParse($sContentOut);
 	}
-	if ($this->ArgumentExists('tag')) {	// surround result with <> to make it into an HTML tag
-	    $sOut = "<$sOut>";
-	}
+
 	if ($this->ArgumentExists('nocrlf')) {
-	    $sValueOut = strtr($sValueOut,"\n\r",'  ');	// replace newline chars with spaces
+	    $sOut = strtr($sOut,"\n\r",'  ');	// replace newline chars with spaces
 	}
 	// added 2017-12-15 for debugging
 	if ($this->ArgumentExists('encode')) {
-	    $sValueOut = htmlspecialchars($sValueOut);	// encode all HTML-significant characters so we can see what is being sent
+	    $sOut = htmlspecialchars($sOut);	// encode all HTML-significant characters so we can see what is being sent
+	}
+	// TODO: this should also check GetALlowRawHTML()
+	if ($this->ArgumentExists('tag')) {	// surround result with <> to make it into an HTML tag
+	    $sOut = "<$sOut>";
 	}
 
 	/* 2017-11-09 This was always kinda klugey; I think I want further tests before re-implementing. Might not be needed.

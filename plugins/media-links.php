@@ -5,9 +5,13 @@
     2011-10-16 w3tpl code started to get too ugly, so pushing out some functionality into callable modules.
     2011-10-28 adapting filed-links.php to media-links.php
     2017-12-13 adapting to use format in classes/modules.php (with namespace)
+    2018-02-14 updating to work with latest w3tpl revisions
 */
 //require_once('filed-links.php');
-xcModule::LoadFile('filedLinks');
+//xcModule::LoadFile('filedLinks');
+$csModuleClass = 'xcModule_MediaLinks';
+
+xcModule::LoadModule('filed-links');	// defines xcModule_FiledLinks
 
 class xcModule_MediaLinks extends xcModule_FiledLinks {
 

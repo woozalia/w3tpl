@@ -1,8 +1,9 @@
 <?php namespace w3tpl;
 /*
-  PURPOSE: Base classes for tags
+  PURPOSE: Base class for w3tpl tags
   HISTORY:
     2017-10-29 started
+  TODO: The argument functions should be replaced by a method that returns an fcInputData object.
 */
 
 abstract class xcTag {

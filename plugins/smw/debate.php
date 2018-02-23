@@ -5,6 +5,9 @@
     2011-10-16 w3tpl code started to get too ugly, so pushing out some functionality into callable modules.
     2011-12-07 starting to adapt from filed-links.php
     2015-09-10 renaming from debate.php to debate-smw.php because it uses SMW
+    2018-02-10 moving this into the smw folder and renaming it back to debate
+      Also, where does it use SMW? Document.
+      Also also, it will need some updating.
 */
 
 new w3tpl_module_Debate();	// class will self-register

@@ -21,7 +21,8 @@ abstract class xcModule {
     static protected function SetParser(\Parser $mwo) {
 	self::$mwoParser = $mwo;
     }
-    static protected function GetParser() {
+    // SERVICE
+    static public function GetParser() {
 	return self::$mwoParser;
     }
     
@@ -127,18 +128,3 @@ abstract class xcModule {
     
     // -- SERVICES -- //
 }
-
-// PURPOSE: xcModule which supports Semantic MediaWiki 
-/* 2018-01-28 does anything use this?
-abstract class xcModule_SMW extends xcModule {
-
-      // ++ CLASSES ++ //
-      
-    // OVERRIDE - doesn't do anything
-    protected function DatabaseClass() {
-	return '\fcDataConn_SMW';
-    }
-
-      // -- CLASSES -- //
-
-} */
