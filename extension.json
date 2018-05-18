@@ -1,13 +1,11 @@
 {
 	"name": "w3tpl",
-	"author": [
-		"Woozle Hypertwin Staddon"
-	],
+	"author": "[http://htyp.org/User:Woozle Woozalia Nicol Staddon]",
 	"license-name": "GPL-2.0+",
 	"url": "http://htyp.org/W3TPL",
 	"descriptionmsg": "w3tpl-desc",
 	"type": "parserhook",
-	"version": "2.1 dev",
+	"version": "2.1 dev 2018-03-20",
 	"MessagesDirs": {
 		"w3tpl": [
 			"i18n"

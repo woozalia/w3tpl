@@ -33,7 +33,7 @@ abstract class xcTag {
 			    //$wgParser->setHook( $sTagName,	array( $sClass,	'Call' ) );	// 2017-12-13 API change??
 			    $wgParser->setHook( $sTagName,$sFx );
 			} else {
-			    throw new \exception('w3tpl internal error: "'.$sFx.'" cannot be called (for tag &lt;'.$sTagName.'&gt;).');
+			    throw new \exception("w3tpl internal error: '$sFx' cannot be called (for tag <$sTagName>).");
 			}
 		    }
 		}

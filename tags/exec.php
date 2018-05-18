@@ -20,8 +20,8 @@ class xcTag_exec extends xcTag {
     // ++ EVENTS ++ //
     
     public function Go() {
-	$arTagArgs = $this->GetArguments();
-	$arModArgs = array();	// in case none found
+	$arTagArgs = $this->GetArguments();	// get <exec> tag arguments
+	$arModArgs = array();			// in case none found
 	$sModName = NULL;
 	$sFuncName = NULL;
 	$sOutVarName = NULL;

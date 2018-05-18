@@ -43,7 +43,7 @@ class xcW3TPL {
     
     // -- CONFIGURATION -- //
 }
-class xcApp extends \fcApp_MW {
+class xcApp extends \ferreteria\mw\fcApp_MW {
 
     // ++ FRAMEWORK ++ //
     

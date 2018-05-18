@@ -30,8 +30,9 @@
 
 class xcVar {
 
-    // ++ SETUP ++ //
+    // ++ DEPRECATED ++ //
 
+    // (SETUP)
     protected static function GetVar($sNameExpr) {
 	throw new \exception('2017-10-30 This will need rewriting.');
 	$sClass = __CLASS__;
@@ -39,25 +40,27 @@ class xcVar {
 	$oVar->FetchVar_byNameExpr($sNameExpr);
 	return $oVar;
     }
+    // (SETUP)
     protected static function GetVarVal($sNameExpr) {
 	throw new \exception('2017-10-30 This will need rewriting.');
 	$oVar = self::GetVar($sNameExpr);
 	return $oVar->GetValue();
     }
-    
-    // -- SETUP -- //
-    // ++ REPOSITORY ++ //
-    
-    static private $arVars=array();
-    static protected function GetVars() {
-	return self::$arVars;
-    }
+    // (REPOSITORY)
     protected function SpawnNode($sName) {
 	throw new \exception('2017-10-30 What is this even for.');
 	$oNode = self::SpawnVariable();
 	$oNode->SetParent($this);
 	$oNode->SetName($sName);
 	return $oNode;
+    }
+
+    // -- DEPRECATED -- //
+    // ++ REPOSITORY ++ //
+    
+    static private $arVars=array();
+    static protected function GetVars() {
+	return self::$arVars;
     }
     static protected function VariableExists($sName) {
 	return array_key_exists($sName,self::$arVars);

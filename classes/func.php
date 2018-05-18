@@ -238,16 +238,19 @@ class xcFunc {
       INPUT: 
 	$arDef = array containing complete function definition, as retrieved from Site Properties
 	$this->GetName() = name of function to store/update
-      MIRROR: GetDefinition();
+      MIRROR: GetDefinition()
+      HISTORY:
+	2018-03-07 Changed from PUBLIC to PROTECTED because nothing is using it outside of $this.
     */
-    public function PutDefinition(array $arDef) {
+    protected function PutDefinition(array $arDef) {
 	if (!array_key_exists('code',$arDef)) {
 	    echo 'function definition:'.\fcArray::Render($arDef);
 	    $sName = $this->GetName();
 	    throw new exception("Code not found for function \"$sName()\".");
 	}
+	
 	$this->SetDefinition(
-	  \fcArray::Nz($arDef,'arg'),
+	  \fcArray::Nz($arDef,'arg',array()),
 	  $arDef['code']
 	  );
 	

@@ -57,8 +57,8 @@ class xcTag_let extends xcTag_Var {
 
 	    if ($isNull) {
 
-		// if "null" option, then no other inputs matter
-		$oVar->ClearLocal();
+		// if "null" option, then no prior inputs matter; set value to NULL
+		$oVar->SetValue(NULL);
 
 /* 2018-02-10 can't think of usage case for this
 	    } elseif ($doLoad) {

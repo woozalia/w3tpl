@@ -120,7 +120,7 @@ class xcModule_PsyCrit extends xcModule_FiledLinks {
 	  .'[[category:specs/target]]';
 	$this->Parse_WikiText($wtOut);	// parse but don't show
 
-	$smoTitle = new xcPsyCrit_Page($this);
+	$smoTitle = new xcPsyCrit_Page();
 	$smoTitle->Use_GlobalTitle();
 
 	$out = $smoTitle->RenderBit_Keyname();
@@ -153,7 +153,7 @@ class xcModule_PsyCrit extends xcModule_FiledLinks {
       ASSUMES: current page is a Response article
     */
     public function TagAPI_Show_Response_Header() {
-	$smoATitle = new xcPsyCrit_Page($this);
+	$smoATitle = new xcPsyCrit_Page();
 	$smoATitle->Use_GlobalTitle();
 
 	$ar = $smoATitle->Render_ResponseHeader();
